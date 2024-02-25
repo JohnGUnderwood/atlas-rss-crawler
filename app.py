@@ -1,36 +1,14 @@
-from os import getenv, getcwd, mkdir
-from shutil import rmtree
-from dotenv import load_dotenv
-import pymongo
-import feedparser
-from feeds import feeds
-from datetime import datetime
+from flask import Flask, request, render_template, jsonify
+from bson.json_util import dumps
 import bson
-from openai import OpenAI, AzureOpenAI
-from processEntry import processEntry
+import json
+from datetime import datetime
+from feeds import feeds
+from crawler import db, processEntry
+import feedparser
+from os import getcwd,mkdir
 import traceback
-
-load_dotenv()
-
-MDB_URI=getenv("MDBCONNSTR")
-MDB_DB=getenv("MDB_DB")
-
-def connect(url):
-    try:
-        client = pymongo.MongoClient(url)
-        client.admin.command('ping')
-        try:
-            db = client.get_database(MDB_DB)
-            print("Successfully connected to MongoDB {} database!".format(MDB_DB))
-            return [client,db]
-        except Exception as e:
-            print(e)
-            print("Failed to connect to {}. Quitting.".format(MDB_DB))
-            exit()
-    except Exception as e:
-        print(e)
-        print("Failed to connect to MongoDB. Quitting.")
-        exit()
+from shutil import rmtree
 
 def setup():
     installed = list(db["feeds"].find())
@@ -46,114 +24,116 @@ def setup():
                 print("\tAdding config for feed.")
                 db['feeds'].insert_one(feed)
 
-def openai():
-    if getenv("OPENAIAPIKEY") and getenv("OPENAIDEPLOYMENT") and getenv("OPENAIENDPOINT"):
-        try:
-            client = AzureOpenAI(
-                api_key = getenv("OPENAIAPIKEY"),  
-                api_version = "2023-12-01-preview",
-                azure_endpoint = getenv("OPENAIENDPOINT")
-            )
-            print("Successfully created AzureOpenAI client!")
-            return [client,"azure_openai"]
-        except Exception as e:
-            raise e
-    elif getenv("OPENAIAPIKEY"):
-        try:
-            client = OpenAI(api_key = getenv("OPENAIAPIKEY"))
-            print("Successfully created OpenAI client!")
-            return [client,"openai"]
-        except Exception as e:
-            raise e
-
-def embed(content,client,type):
-    if type == "azure_openai":
-        response = client.embeddings.create(
-            input=content,
-            model=getenv("OPENAIDEPLOYMENT")
-        )
-        return {"provider":"AzureOpenAI","model":getenv("OPENAIDEPLOYMENT"),"dimensions":len(response.data[0].embedding),"vector":response.data[0].embedding}
-    elif type == "openai":
-        response = client.embeddings.create(
-            input=content,
-            model="text-embedding-3-large",
-            dimensions=256
-        )
-        return {"provider":"OpenAI","model":"text-embedding-3-large","dimensions":len(response.data[0].embedding),"vector":response.data[0].embedding}
-    else:
-        raise "Unrecognised client type {} passed to embed function".format(type)
-    
-def addEntry(session,logId=None,entry=None):
+def returnPrettyJson(data):
     try:
-        docs_collection = session.client[MDB_DB].docs
-        logs_collection = session.client[MDB_DB].logs
-        resp = docs_collection.insert_one(entry,session=session)
-        logs_collection.update_one({'_id':logId},{"$push":{"crawled":entry.id,"inserted":bson.ObjectId(resp.inserted_id)}},session=session)
-    
-        print("Entry update transaction successful")
-        return
-    except Exception as e:
-        raise e
+        return jsonify(**json.loads(dumps(data)))
+    except TypeError:
+        try:
+            return jsonify(*json.loads(dumps(data)))
+        except TypeError:
+            try: 
+                return dumps(data)
+            except TypeError:
+                return repr(data)
+        
 
-def crawl(config):
-    dir  = '{}/{}/{}'.format('temp',getcwd(),config['_id'])
-    try:
-        mkdir(dir)
-    except FileExistsError:
-        pass
-    feed = feedparser.parse(config['url'])
-    db['feeds'].update_one({'_id':config['_id']},{"$set":{'lastCrawl':datetime.now()}})
-    r = db['logs'].insert_one({'feedId':config['_id'],'start':datetime.now(),'crawled':[],'inserted':[],'errors':[]})
-    logId = bson.ObjectId(r.inserted_id)
-    if 'lastCrawl' in config:
-        lastCrawl = config["lastCrawl"]
-        if lastCrawl < datetime.strptime(feed.feed.updated,config['date_format']):
-            for entry in feed.entries:
-                entry_date = datetime.strptime(entry.published, config['date_format'])
-                if entry_date > lastCrawl:
-                    try:
-                        entry = processEntry(entry,config,dir)
-                        entry.update({'embedding':embed("{}. {}".format(entry.title,entry['content'][config['lang']]),openai_client,openai_type)})
-                        with client.start_session() as session:
-                            session.with_transaction(lambda session: addEntry(session,logId=logId,entry=entry))
-                    except Exception:
-                        e = traceback.format_exc()
-                        db['logs'].update_one({'_id':logId},{'$push':{'errors':{'entryId':entry.id,'error':e}}})
-
-    else:
-        for entry in feed.entries:
-            try:
-                entry = processEntry(entry,config,dir)
-                with client.start_session() as session:
-                    session.with_transaction(lambda session: addEntry(session,logId=logId,entry=entry))
-            except Exception:
-                e = traceback.format_exc()
-                db['logs'].update_one({'_id':logId},{'$push':{'errors':{'entryId':entry.id,'error':e}}})
-
-    db['logs'].update_one({'_id':logId},{"$set":{'status':'stopped','end':datetime.now()}})
-    rmtree(dir)
-
-client, db = connect(MDB_URI)
-openai_client,openai_type = openai()
+app = Flask(__name__)
 setup()
-installed = list(db["feeds"].find())
-for config in installed:
-    crawl(config)
 
-# from flask import Flask
-# app = Flask(__name__)
+@app.get("/feeds")
+def getFeeds():
+    try:
+        feedList = list(db['feeds'].find({}))
+        return returnPrettyJson(feedList), 200
+    except Exception as e:
+        return returnPrettyJson(e),500
 
-# @app.get("/start/<string:feedId>")
-# def startCrawl(feedId):
-#     config = db['feeds'].find_one({'_id':feedId})
-#     if config['status'] == 'stopped':
-#         db['feeds'].update_one({'_id':config['_id']},{"$set":{'status':'running'}})
-#         crawl(config)
-#         db['feeds'].update_one({'_id':config['_id']},{"$set":{'status':'stopped'}})
-#         return 
-#     else:
-#         return "<p>Feed {} alread running</p>"
+@app.post("/feeds")
+def postFeed():
+    try:
+        feed = db['feeds'].insert_one(request.form)
+        return returnPrettyJson(feed), 200
+    except Exception as e:
+        return returnPrettyJson(e),500
 
+@app.get("/feed/<string:feedId>")
+def getFeed(feedId):
+    try:
+        config = db['feeds'].find_one({'_id':feedId})
+        return returnPrettyJson(config), 200
+    except Exception as e:
+        return returnPrettyJson(e),500
+    
+@app.get("/feed/<string:feedId>/history")
+def getFeedCrawlHistory(feedId):
+    try:
+        crawls = list(db['logs'].find({'feedId':feedId}).sort('end',-1))
+        return returnPrettyJson(crawls)
+    except Exception as e:
+        return returnPrettyJson(e),500
 
+@app.get("/feed/<string:feedId>/test")
+def testFeed(feedId):
+    try:
+        config = db['feeds'].find_one({'_id':feedId})
+        feed = feedparser.parse(config['url'])
+        dir = '{}/{}'.format(getcwd(),'test')
+        try:
+            mkdir(dir)
+        except FileExistsError:
+            pass
+        try:
+            processEntry(feed.entries[0],config,dir)
+        except Exception as e:
+            return traceback.format_exc(),500
+        
+        rmtree(dir)
+        return returnPrettyJson(feed.entries[0]),200
+    except Exception as e:
+        return returnPrettyJson(e),500
 
+@app.get("/feed/<string:feedId>/start")
+def queueCrawl(feedId):
+    try:
+        config = db['feeds'].find_one({'_id':feedId})
+        if not 'status' in config or config['status'] == 'stopped':
+            r = db['queue'].insert_one({'queued_time':datetime.now(),'status':'waiting','config':config})
+            return returnPrettyJson({'crawl_queue_id':r.inserted_id,'status':{'queued_time':datetime.now(),'status':'waiting','config':config}}),200
+        elif config['status'] == 'running':
+            crawlStatus = db['logs'].find_one({'_id':bson.ObjectId(config['crawlId'])})
+            return returnPrettyJson({'msg':'Feed {} already running'.format(feedId),'status':crawlStatus}),200
+    except Exception as e:
+        return returnPrettyJson(e),500
+
+@app.get("/crawls")
+def getCrawls():
+    try:
+        crawls = list(db['logs'].find().sort('end',-1))
+        return returnPrettyJson(crawls)
+    except Exception as e:
+        return returnPrettyJson(e),500
+
+@app.get("/crawl/<string:crawlId>")
+def getCrawl(crawlId):
+    try:
+        crawlStatus = db['logs'].find_one({'_id':crawlId})
+        return(crawlStatus)
+    except Exception as e:
+        return returnPrettyJson(e),500
+
+@app.get("/queue")
+def getQueue():
+    try:
+        crawls = list(db['queue'].find().sort('start',-1))
+        return returnPrettyJson(crawls),200
+    except Exception as e:
+        return returnPrettyJson(e),500
+
+@app.get("/queue/<string:crawlId>")
+def queuedTask(crawlId):
+    try:
+        status = db['queue'].find_one({'_id':bson.ObjectId(crawlId)})
+        return returnPrettyJson(status),200
+    except Exception as e:
+        return returnPrettyJson(e),500
 

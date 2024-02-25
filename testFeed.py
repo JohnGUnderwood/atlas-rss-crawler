@@ -1,6 +1,6 @@
 from sys import argv
 from feeds import feeds
-from processEntry import processEntry
+from crawler import processEntry
 import feedparser
 from os import getcwd,mkdir
 from shutil import rmtree
