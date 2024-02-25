@@ -6,9 +6,9 @@ import feedparser
 from feeds import feeds
 from datetime import datetime
 import bson
-import requests
-from bs4 import BeautifulSoup
-from selenium import webdriver
+from openai import OpenAI, AzureOpenAI
+from processEntry import processEntry
+import traceback
 
 load_dotenv()
 
@@ -46,6 +46,43 @@ def setup():
                 print("\tAdding config for feed.")
                 db['feeds'].insert_one(feed)
 
+def openai():
+    if getenv("OPENAIAPIKEY") and getenv("OPENAIDEPLOYMENT") and getenv("OPENAIENDPOINT"):
+        try:
+            client = AzureOpenAI(
+                api_key = getenv("OPENAIAPIKEY"),  
+                api_version = "2023-12-01-preview",
+                azure_endpoint = getenv("OPENAIENDPOINT")
+            )
+            print("Successfully created AzureOpenAI client!")
+            return [client,"azure_openai"]
+        except Exception as e:
+            raise e
+    elif getenv("OPENAIAPIKEY"):
+        try:
+            client = OpenAI(api_key = getenv("OPENAIAPIKEY"))
+            print("Successfully created OpenAI client!")
+            return [client,"openai"]
+        except Exception as e:
+            raise e
+
+def embed(content,client,type):
+    if type == "azure_openai":
+        response = client.embeddings.create(
+            input=content,
+            model=getenv("OPENAIDEPLOYMENT")
+        )
+        return {"provider":"AzureOpenAI","model":getenv("OPENAIDEPLOYMENT"),"dimensions":len(response.data[0].embedding),"vector":response.data[0].embedding}
+    elif type == "openai":
+        response = client.embeddings.create(
+            input=content,
+            model="text-embedding-3-large",
+            dimensions=256
+        )
+        return {"provider":"OpenAI","model":"text-embedding-3-large","dimensions":len(response.data[0].embedding),"vector":response.data[0].embedding}
+    else:
+        raise "Unrecognised client type {} passed to embed function".format(type)
+    
 def addEntry(session,logId=None,entry=None):
     try:
         docs_collection = session.client[MDB_DB].docs
@@ -58,57 +95,12 @@ def addEntry(session,logId=None,entry=None):
     except Exception as e:
         raise e
 
-
-def getWebContent(entry,selector,dir):
-    try:
-        headers = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.96 Safari/537.36"}
-        r = requests.get(
-                entry.link,
-                headers=headers
-            ).text
-
-        file = open('{}/{}.html'.format(dir,entry.id),'wt')
-        file.write(r)
-        file.close()
-
-        options = webdriver.ChromeOptions()
-        options.add_argument("headless")
-        browser = webdriver.Chrome(options=options)
-        browser.get('file://{}/{}.html'.format(dir,entry.id))
-        html = browser.page_source
-        browser.quit()
-
-        soup = BeautifulSoup(html, "html.parser")
-        tags = soup.select(selector)
-
-        content = ""
-        for tag in tags:
-            content+=tag.text.strip()
-
-        return content
-    except Exception as e:
-        raise e
-
-def processEntry(entry,logId,config,dir):
-    try:
-        entry.update({'content':{config['lang']:getWebContent(entry,config['content_html_selector'],dir)}})
-        entry.update({'summary':{config['lang']:entry.summary}})
-        entry.update({'title':{config['lang']:entry.title}})
-        entry.update({'published':datetime.strptime(entry.published, config['date_format'])})
-        entry.update({'media_thumbnail':entry.media_thumbnail[0]['url']})
-        entry.update({'tags':[tag['term'] for tag in entry.tags]})
-        entry.update({'authors':[author['name'] for author in entry.authors]})
-        entry.update({'lang':config['lang']})
-        entry.update({'attribution':config['attribution']})
-        with client.start_session() as session:
-            session.with_transaction(lambda session: addEntry(session,logId=logId,entry=entry))
-    except Exception as e:
-        print(e)
-        db['logs'].update_one({'_id':logId},{'$push':{'errors':{'entryId':entry.id,'error':e}}})
-
 def crawl(config):
-    dir  = '{}/{}'.format(getcwd(),config['_id'])
-    mkdir(dir)
+    dir  = '{}/{}/{}'.format('temp',getcwd(),config['_id'])
+    try:
+        mkdir(dir)
+    except FileExistsError:
+        pass
     feed = feedparser.parse(config['url'])
     db['feeds'].update_one({'_id':config['_id']},{"$set":{'lastCrawl':datetime.now()}})
     r = db['logs'].insert_one({'feedId':config['_id'],'start':datetime.now(),'crawled':[],'inserted':[],'errors':[]})
@@ -119,15 +111,30 @@ def crawl(config):
             for entry in feed.entries:
                 entry_date = datetime.strptime(entry.published, config['date_format'])
                 if entry_date > lastCrawl:
-                    processEntry(entry,logId,config,dir)
+                    try:
+                        entry = processEntry(entry,config,dir)
+                        entry.update({'embedding':embed("{}. {}".format(entry.title,entry['content'][config['lang']]),openai_client,openai_type)})
+                        with client.start_session() as session:
+                            session.with_transaction(lambda session: addEntry(session,logId=logId,entry=entry))
+                    except Exception:
+                        e = traceback.format_exc()
+                        db['logs'].update_one({'_id':logId},{'$push':{'errors':{'entryId':entry.id,'error':e}}})
+
     else:
         for entry in feed.entries:
-            processEntry(entry,logId,config,dir)
+            try:
+                entry = processEntry(entry,config,dir)
+                with client.start_session() as session:
+                    session.with_transaction(lambda session: addEntry(session,logId=logId,entry=entry))
+            except Exception:
+                e = traceback.format_exc()
+                db['logs'].update_one({'_id':logId},{'$push':{'errors':{'entryId':entry.id,'error':e}}})
 
     db['logs'].update_one({'_id':logId},{"$set":{'status':'stopped','end':datetime.now()}})
     rmtree(dir)
 
 client, db = connect(MDB_URI)
+openai_client,openai_type = openai()
 setup()
 installed = list(db["feeds"].find())
 for config in installed:

@@ -3,3 +3,4 @@ beautifulsoup4==4.11.1
 selenium==4.18.1
 celery==5.3.6
 flask==2.2.3
+openai==1.12.0
