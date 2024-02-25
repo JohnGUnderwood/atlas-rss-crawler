@@ -116,8 +116,8 @@ def getCrawls():
 @app.get("/crawl/<string:crawlId>")
 def getCrawl(crawlId):
     try:
-        crawlStatus = db['logs'].find_one({'_id':crawlId})
-        return(crawlStatus)
+        crawlStatus = db['logs'].find_one({'_id':bson.ObjectId(crawlId)})
+        return returnPrettyJson(crawlStatus)
     except Exception as e:
         return returnPrettyJson(e),500
 

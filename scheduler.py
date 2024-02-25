@@ -9,7 +9,7 @@ def process(config,queue_id):
     print('process id:', os.getpid())
     logId = crawl(config)
     db['queue'].delete_one({'_id':queue_id})
-    return "Finished. Crawl log: {}".format(logId)
+    print("Finished. Crawl log: {}".format(logId))
 
 if __name__ == '__main__':
     while True:
