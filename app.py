@@ -1,4 +1,5 @@
-from flask import Flask, request, render_template, jsonify
+from flask import Flask, request, jsonify
+from flask_cors import CORS, cross_origin
 from bson.json_util import dumps
 import bson
 import json
@@ -38,6 +39,9 @@ def returnPrettyJson(data):
         
 
 app = Flask(__name__)
+cors = CORS(app)
+app.config['CORS_HEADERS'] = 'Content-Type'
+
 setup()
 
 @app.get("/feeds")
