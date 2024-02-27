@@ -24,41 +24,40 @@ def connect():
         print("Failed to connect to MongoDB. Quitting.")
         exit()
 
-def startProcess(config,queue_id):
+def startProcess(config,feed_id):
     try:
-        print("Processed task: ",queue_id)
-        print('parent process:', os.getppid())
-        print('process id:', os.getpid())
+        print('Parent process:', os.getppid())
+        print('Process id:', os.getpid())
+        config.update({'_id':feed_id})
         crawler= Crawler(MDB_URL=os.getenv("MDBCONNSTR"),MDB_DB=os.getenv("MDB_DB"),FEED_CONFIG=config,PID=os.getpid())
-        print("Running crawl: ",config['_id'])
+        print("Running crawl: ",feed_id)
         crawler.start()
-        print("Finished. Crawl log: {}".format(config['_id']))
+        print("Finished. Crawl log: {}".format(feed_id))
     except Exception:
         print(traceback.format_exc())
 
 def killProcess(pid,crawlId):
     client,db = connect()
-    try:
-        db['feeds'].update_one({'_id':crawlId},{"$set":{'status':'stopped'}})
-        try: 
-            os.kill(pid, signal.SIGTERM)
-            print("Stopped crawl: {}".format(crawlId))
-        except Exception:
-            print(traceback.format_exc())
-        finally: client.close()
+    try: 
+        os.kill(pid, signal.SIGTERM)
+        print("Stopped crawl: {}".format(crawlId))
     except Exception:
-        print("Failed to stop crawl {}".format(crawlId),traceback.format_exc())
+        print(traceback.format_exc())
     finally: client.close()
     
 
 def fetch_data(q):
     client,db = connect()
-    data = list(db['queue'].find({'status':'waiting'}))
+    data = list(db['queue'].find({"$or":[{'action':'stop'},{'action':'start'}]}))
     if(data):
         print("Found items in queue")
         for item in data:
-            print("Removing item {} from queue.".format(item['_id']))
-            db['queue'].update_one({'_id':item['_id'],},{"$set":{'status':'processed'}})
+            print("Processing feed {}.".format(item['feed_id']))
+            db['queue'].update_one({'_id':item['_id']},{"$set":{'action':'processed'}})
+            if item['action'] == 'start':
+                db['feeds'].update_one({'_id':item['feed_id']},{"$set":{'status':'running'}})
+            elif item['action'] == 'stop':
+                db['feeds'].update_one({'_id':item['feed_id']},{"$set":{'status':'stopped'}})
             q.put(item)
     else:
         print("Nothing in queue")
@@ -67,10 +66,10 @@ def fetch_data(q):
 def process_data(item):
     if item['action'] == 'start':
         print("Found task to start")
-        startProcess(item['config'],item['_id'])
+        startProcess(item['config'],item['feed_id'])
     elif item['action'] == 'stop':
         print("Found task to stop")
-        killProcess(item['pid'],item['crawl_id'])
+        killProcess(item['pid'],item['feed_id'])
 
 if __name__ == '__main__':
     q = Queue()

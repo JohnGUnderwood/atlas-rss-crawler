@@ -10,6 +10,11 @@ from bs4 import BeautifulSoup
 from selenium import webdriver
 import re
 import signal
+import sys
+
+class DuplicateEntryException(Exception):
+    def __init__(self, message):
+        super().__init__(message)
 
 class Entry:
     def __init__(self,DATA,DIR,SELECTOR,LANG,ATTRIBUTION):
@@ -87,12 +92,13 @@ class Crawler:
     
     def signal_handler(self,sig,frame):
         print('SIGTERM received, shutting down')
-        self.updateFeed({"$set":{'crawl.end':datetime.now(),'crawl.status':'stopped','status':"stopped"}})
+        self.MDB_CLIENT[self.MDB_DB]['feeds'].update_one({'_id':self.FEED_CONFIG['_id']},{"$set":{'crawl.end':datetime.now(),'status':'stopped'}})
         crawl = self.MDB_CLIENT[self.MDB_DB]['feeds'].find_one({'_id':self.FEED_CONFIG['_id']},{'crawl':1})['crawl']
         crawl.update({'feed_id':self.FEED_CONFIG['_id']})
         self.MDB_CLIENT[self.MDB_DB]['logs'].insert_one(crawl)
         self.MDB_CLIENT.close()
         print('Caught the SystemExit exception while running crawl {}'.format(self.CRAWL_ID))
+        sys.exit(0)
     
     def connect(self):
         try:
@@ -128,7 +134,7 @@ class Crawler:
             return
         except pymongo.errors.DuplicateKeyError:
             print("Crawl {} entry {} already exists in database".format(self.CRAWL_ID,entry['id']))
-            raise Exception("Entry id {} already exists".format(entry['id']))
+            raise DuplicateEntryException("Entry id {} already exists".format(entry['id']))
         except Exception as e:
             raise e
         
@@ -139,21 +145,21 @@ class Crawler:
                 self.updateFeed({"$push":{"crawl.crawled":entry['link']}})
                 with self.MDB_CLIENT.start_session() as session:
                     session.with_transaction(lambda session: self.insertEntry(session,entry))
+            except DuplicateEntryException as e:
+                self.updateFeed({'$push':{'crawl.skipped':entry['id']}})
             except Exception as e:
-                t = traceback.format_exc()
-                print("Crawler {} failed to insert entry for item {}".format(self.CRAWL_ID,entry['id']),t)
-                self.updateFeed({'$push':{'crawl.errors':{'entryId':entry['id'],'error':e}}})
+                print("Crawler {} failed to insert entry for item {}".format(self.CRAWL_ID,entry['id']),e)
+                self.updateFeed({'$push':{'crawl.errors':{'entryId':entry['id'],'error':str(e)}}})
         except Exception as e:
-            t = traceback.format_exc()
             print("Crawler {} failed to create Entry object for item {}".format(self.CRAWL_ID,item['id']),e)
-            self.updateFeed({'$push':{'crawl.errors':{'entryId':item['id'],'error':e}}})
+            self.updateFeed({'$push':{'crawl.errors':{'entryId':item['id'],'error':str(e)}}})
     
     def start(self):
         config = self.FEED_CONFIG
         crawlId = self.CRAWL_ID
-        crawl = {'pid':self.PID,'status':'running','start':datetime.now(),'crawled':[],'inserted':[],'errors':[]}
-        
-        self.updateFeed({"$set":{'crawl':crawl,'status':'running','crawl_date':crawl['start']}})
+        crawl = {'pid':self.PID,'crawled':[],'inserted':[],'skipped':[],'errors':[]}
+        self.updateFeed({"$set":{'crawl':crawl,'status':'running'}})
+
         date_format = '%a, %d %b %Y %H:%M:%S %Z'
         dir  = '{}/{}/{}'.format(getcwd(),'temp',config['_id'])
         try:
@@ -162,11 +168,13 @@ class Crawler:
             pass
 
         feed = feedparser.parse(config['url'])
-        if 'crawl_date' in config:
-            if config['crawl_date'] < datetime.strptime(feed.feed.updated,date_format):
+        start = datetime.now()
+        self.updateFeed({"$set":{'crawl.start':start,'config.last_crawl_date':start}})
+        if 'last_crawl_date' in config:
+            if config['last_crawl_date'] < datetime.strptime(feed.feed.updated,date_format):
                 for item in feed.entries:
                     item_date = datetime.strptime(item.published,date_format)
-                    if item_date > config['crawl_date']:
+                    if item_date > config['last_crawl_date']:
                         self.processItem(item,dir)
 
         else:
@@ -174,7 +182,7 @@ class Crawler:
                 self.processItem(item,dir)
 
         rmtree(dir)
-        self.updateFeed({"$set":{'crawl.end':datetime.now(),'crawl.status':'finished','status':"stopped"}})
+        self.updateFeed({"$set":{'crawl.end':datetime.now(),'status':'stopped'}})
         crawl = self.MDB_CLIENT[self.MDB_DB]['feeds'].find_one({'_id':self.FEED_CONFIG['_id']},{'crawl':1})['crawl']
         crawl.update({'feed_id':self.FEED_CONFIG['_id']})
         self.MDB_CLIENT[self.MDB_DB]['logs'].insert_one(crawl)

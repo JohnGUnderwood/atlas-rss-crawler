@@ -130,45 +130,51 @@ def testFeed(feedId):
 @app.get("/feed/<string:feedId>/start")
 def queueCrawl(feedId):
     try:
-        config = db['feeds'].find_one({'_id':feedId})
-        if not 'status' in config or config['status'] == 'stopped':
-            insert = {'queued_time':datetime.now(),'crawl_id':feedId,'status':'waiting','config':config,'action':'start'}
-            r = db['queue'].insert_one(insert)
-            return returnPrettyJson({'crawl_queue_id':r.inserted_id,'crawl_id':feedId,'config':config}),200
-        elif config['status'] == 'running':
-            return returnPrettyJson({'msg':'Feed {} already running'.format(feedId),'status':config['crawl']}),200
+        q = db['queue'].find_one({'feed_id':feedId,'action':'start'})
+        if q:
+            return returnPrettyJson({'msg':'Feed {} already in queue to start'.format(feedId)}),200
+        
+        f = db['feeds'].find_one({'_id':feedId},{'status':1,"crawl":1,'config':1})
+        if not 'status' in f or f['status'] == 'stopped':
+            r = db['queue'].insert_one({'action':'start','feed_id':feedId,'config':f['config']})
+            return returnPrettyJson({'config':f['config'],'queued_task':r.inserted_id}),200
+        elif f['status'] == 'running':
+            return returnPrettyJson({'msg':'Feed {} already running'.format(feedId),'status':f['crawl']}),200
     except Exception as e:
         return returnPrettyJson(e),500
 
 @app.get("/feed/<string:feedId>/stop")
 def queueStopCrawl(feedId):
     try:
-        r = db['feeds'].find_one({'_id':feedId},{"crawl.pid":1,'status':1})
-        if r['status'] == 'running':
+        q = db['queue'].find_one({'feed_id':feedId,'action':'stop'})
+        if q:
+            return returnPrettyJson({'msg':'Feed {} already in queue to stop'.format(feedId)}),200
+        
+        f = db['feeds'].find_one({'_id':feedId},{"pid":"$crawl.pid",'status':1})
+        if 'status' in f and f['status'] == 'running':
             try:
-                insert = {'queued_time':datetime.now(),'status':'waiting','crawl_id':feedId,'pid':r['crawl']['pid'],'action':'stop'}
-                r = db['queue'].insert_one(insert)
-                return returnPrettyJson({'crawl_queue_id':r.inserted_id,'crawl_id':feedId,'insert':insert}),200
+                r = db['queue'].insert_one({'action':'stop','feed_id':feedId,'pid':f['pid']})
+                return returnPrettyJson({'pid':f['pid']}),200
             except Exception as e:
                 return returnPrettyJson(e),500
-        elif r['status'] != 'running':
+        elif f['status'] != 'running' or 'status' not in r:
             return returnPrettyJson({'msg':'Feed {} is not running'.format(feedId)}),200
     except Exception as e:
         return returnPrettyJson(e),500
 
-@app.get("/queue")
-def getQueue():
-    try:
-        crawls = list(db['queue'].find().sort('start',-1))
-        return returnPrettyJson(crawls),200
-    except Exception as e:
-        return returnPrettyJson(e),500
+# @app.get("/queue")
+# def getQueue():
+#     try:
+#         crawls = list(db['queue'].find().sort('start',-1))
+#         return returnPrettyJson(crawls),200
+#     except Exception as e:
+#         return returnPrettyJson(e),500
 
-@app.get("/queue/<string:taskId>")
-def queuedTask(taskId):
-    try:
-        status = db['queue'].find_one({'_id':bson.ObjectId(taskId)})
-        return returnPrettyJson(status),200
-    except Exception as e:
-        return returnPrettyJson(e),500
+# @app.get("/queue/<string:taskId>")
+# def queuedTask(taskId):
+#     try:
+#         status = db['queue'].find_one({'_id':bson.ObjectId(taskId)})
+#         return returnPrettyJson(status),200
+#     except Exception as e:
+#         return returnPrettyJson(e),500
 
