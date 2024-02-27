@@ -88,6 +88,7 @@ class Crawler:
         self.PID=PID
         self.CRAWL_ID=FEED_CONFIG['_id']
         self.MDB_CLIENT=self.connect()
+        self.DIR='{}/{}/{}'.format(getcwd(),'temp',FEED_CONFIG['_id'])
         signal.signal(signal.SIGTERM, self.signal_handler)
     
     def signal_handler(self,sig,frame):
@@ -97,6 +98,7 @@ class Crawler:
         crawl.update({'feed_id':self.FEED_CONFIG['_id']})
         self.MDB_CLIENT[self.MDB_DB]['logs'].insert_one(crawl)
         self.MDB_CLIENT.close()
+        rmtree(self.DIR)
         print('Caught the SystemExit exception while running crawl {}'.format(self.CRAWL_ID))
         sys.exit(0)
     
@@ -161,7 +163,7 @@ class Crawler:
         self.updateFeed({"$set":{'crawl':crawl,'status':'running'}})
 
         date_format = '%a, %d %b %Y %H:%M:%S %Z'
-        dir  = '{}/{}/{}'.format(getcwd(),'temp',config['_id'])
+        dir  = self.DIR
         try:
             makedirs(dir,exist_ok=True)
         except FileExistsError:

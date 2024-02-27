@@ -105,8 +105,8 @@ def deleteFeedCrawlHistory(feedId):
 @app.get("/feed/<string:feedId>/test")
 def testFeed(feedId):
     try:
-        config = db['feeds'].find_one({'_id':feedId})
-        feed = feedparser.parse(config['url'])
+        f = db['feeds'].find_one({'_id':feedId},{'config':1})
+        feed = feedparser.parse(f['config']['url'])
         dir = '{}/{}'.format(getcwd(),'test')
         try:
             mkdir(dir)
@@ -116,9 +116,9 @@ def testFeed(feedId):
             entry = Entry(
                 DATA=feed.entries[0],
                 DIR=dir,
-                SELECTOR=config['content_html_selector'],
-                LANG=config['lang'],
-                ATTRIBUTION=config['attribution']).processEntry()
+                SELECTOR=f['config']['content_html_selector'],
+                LANG=f['config']['lang'],
+                ATTRIBUTION=f['config']['attribution']).processEntry()
         except Exception as e:
             return traceback.format_exc(),500
         
