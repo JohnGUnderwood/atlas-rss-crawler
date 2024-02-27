@@ -6,17 +6,13 @@
     "start": "next start"
   },
   "dependencies": {
+    "@leafygreen-ui/button": "^21.0.12",
     "@leafygreen-ui/expandable-card": "^3.0.23",
     "@leafygreen-ui/typography": "^18.2.1",
     "axios": "^1.6.7",
+    "dotenv": "^16.4.5",
     "next": "latest",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
-  },
-  "devDependencies": {
-    "@types/node": "^18.0.0",
-    "@types/react": "^18.0.14",
-    "@types/react-dom": "^18.0.5",
-    "typescript": "^4.7.4"
   }
 }

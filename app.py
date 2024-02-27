@@ -5,11 +5,29 @@ import bson
 import json
 from datetime import datetime
 from feeds import feeds
-from crawler import db, processEntry
+from crawler import Entry
 import feedparser
-from os import getcwd,mkdir
+from os import getcwd,mkdir,getenv
 import traceback
 from shutil import rmtree
+import pymongo
+
+def connect():
+    try:
+        client = pymongo.MongoClient(getenv("MDBCONNSTR"))
+        client.admin.command('ping')
+        try:
+            db = client.get_database(getenv("MDB_DB"))
+            print("Successfully connected to MongoDB {} database!".format(db.name))
+            return client, db
+        except Exception as e:
+            print(e)
+            print("Failed to connect to {}. Quitting.".format(db))
+            exit()
+    except Exception as e:
+        print(e)
+        print("Failed to connect to MongoDB. Quitting.")
+        exit()
 
 def setup():
     installed = list(db["feeds"].find())
@@ -41,13 +59,13 @@ def returnPrettyJson(data):
 app = Flask(__name__)
 cors = CORS(app)
 app.config['CORS_HEADERS'] = 'Content-Type'
-
+client,db = connect()
 setup()
 
 @app.get("/feeds")
 def getFeeds():
     try:
-        feedList = list(db['feeds'].find({}))
+        feedList = list(db['feeds'].find({}).sort('crawl_date',-1))
         return returnPrettyJson(feedList), 200
     except Exception as e:
         return returnPrettyJson(e),500
@@ -71,8 +89,16 @@ def getFeed(feedId):
 @app.get("/feed/<string:feedId>/history")
 def getFeedCrawlHistory(feedId):
     try:
-        crawls = list(db['logs'].find({'feedId':feedId}).sort('end',-1))
+        crawls = list(db['logs'].find({'feed_id':feedId}).sort('end',-1))
         return returnPrettyJson(crawls)
+    except Exception as e:
+        return returnPrettyJson(e),500
+
+@app.get("/feed/<string:feedId>/history/clear")
+def deleteFeedCrawlHistory(feedId):
+    try:
+        delete = db['logs'].delete_many({'feed_id':feedId})
+        return returnPrettyJson(delete),200
     except Exception as e:
         return returnPrettyJson(e),500
 
@@ -87,12 +113,17 @@ def testFeed(feedId):
         except FileExistsError:
             pass
         try:
-            processEntry(feed.entries[0],config,dir)
+            entry = Entry(
+                DATA=feed.entries[0],
+                DIR=dir,
+                SELECTOR=config['content_html_selector'],
+                LANG=config['lang'],
+                ATTRIBUTION=config['attribution']).processEntry()
         except Exception as e:
             return traceback.format_exc(),500
         
         rmtree(dir)
-        return returnPrettyJson(feed.entries[0]),200
+        return returnPrettyJson(entry),200
     except Exception as e:
         return returnPrettyJson(e),500
 
@@ -101,27 +132,27 @@ def queueCrawl(feedId):
     try:
         config = db['feeds'].find_one({'_id':feedId})
         if not 'status' in config or config['status'] == 'stopped':
-            r = db['queue'].insert_one({'queued_time':datetime.now(),'status':'waiting','config':config})
-            return returnPrettyJson({'crawl_queue_id':r.inserted_id,'status':{'queued_time':datetime.now(),'status':'waiting','config':config}}),200
+            insert = {'queued_time':datetime.now(),'crawl_id':feedId,'status':'waiting','config':config,'action':'start'}
+            r = db['queue'].insert_one(insert)
+            return returnPrettyJson({'crawl_queue_id':r.inserted_id,'crawl_id':feedId,'config':config}),200
         elif config['status'] == 'running':
-            crawlStatus = db['logs'].find_one({'_id':bson.ObjectId(config['crawlId'])})
-            return returnPrettyJson({'msg':'Feed {} already running'.format(feedId),'status':crawlStatus}),200
+            return returnPrettyJson({'msg':'Feed {} already running'.format(feedId),'status':config['crawl']}),200
     except Exception as e:
         return returnPrettyJson(e),500
 
-@app.get("/crawls")
-def getCrawls():
+@app.get("/feed/<string:feedId>/stop")
+def queueStopCrawl(feedId):
     try:
-        crawls = list(db['logs'].find().sort('end',-1))
-        return returnPrettyJson(crawls)
-    except Exception as e:
-        return returnPrettyJson(e),500
-
-@app.get("/crawl/<string:crawlId>")
-def getCrawl(crawlId):
-    try:
-        crawlStatus = db['logs'].find_one({'_id':bson.ObjectId(crawlId)})
-        return returnPrettyJson(crawlStatus)
+        r = db['feeds'].find_one({'_id':feedId},{"crawl.pid":1,'status':1})
+        if r['status'] == 'running':
+            try:
+                insert = {'queued_time':datetime.now(),'status':'waiting','crawl_id':feedId,'pid':r['crawl']['pid'],'action':'stop'}
+                r = db['queue'].insert_one(insert)
+                return returnPrettyJson({'crawl_queue_id':r.inserted_id,'crawl_id':feedId,'insert':insert}),200
+            except Exception as e:
+                return returnPrettyJson(e),500
+        elif r['status'] != 'running':
+            return returnPrettyJson({'msg':'Feed {} is not running'.format(feedId)}),200
     except Exception as e:
         return returnPrettyJson(e),500
 
@@ -133,10 +164,10 @@ def getQueue():
     except Exception as e:
         return returnPrettyJson(e),500
 
-@app.get("/queue/<string:crawlId>")
-def queuedTask(crawlId):
+@app.get("/queue/<string:taskId>")
+def queuedTask(taskId):
     try:
-        status = db['queue'].find_one({'_id':bson.ObjectId(crawlId)})
+        status = db['queue'].find_one({'_id':bson.ObjectId(taskId)})
         return returnPrettyJson(status),200
     except Exception as e:
         return returnPrettyJson(e),500

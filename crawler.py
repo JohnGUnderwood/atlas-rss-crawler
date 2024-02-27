@@ -1,177 +1,183 @@
 from os import getenv, getcwd, makedirs
 from shutil import rmtree
-from dotenv import load_dotenv
-import pymongo
 import feedparser
 from datetime import datetime
 import bson
-from openai import OpenAI, AzureOpenAI
+import pymongo
 import traceback
 import requests
 from bs4 import BeautifulSoup
 from selenium import webdriver
 import re
+import signal
 
-load_dotenv()
+class Entry:
+    def __init__(self,DATA,DIR,SELECTOR,LANG,ATTRIBUTION):
+        self.DIR=DIR
+        self.DATA=DATA
+        self.SELECTOR=SELECTOR
+        self.LANG=LANG
+        self.ATTRIBUTION=ATTRIBUTION
+    
+    def get(self):
+        return self.DATA
 
-MDB_URI=getenv("MDBCONNSTR")
-MDB_DB=getenv("MDB_DB")
-
-def connect(url):
-    try:
-        client = pymongo.MongoClient(url)
-        client.admin.command('ping')
+    def getWebContent(self):
+        entry = self.DATA
+        selector = self.SELECTOR
+        dir = self.DIR
         try:
-            db = client.get_database(MDB_DB)
-            print("Successfully connected to MongoDB {} database!".format(MDB_DB))
-            return [client,db]
+            headers = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.96 Safari/537.36"}
+            r = requests.get(
+                    entry.link,
+                    headers=headers
+                ).text
+            file = open('{}/{}.html'.format(dir,re.sub('[^A-Za-z0-9_\-.]','',entry.id)),'wt')
+            file.write(r)
+            file.close()
+
+            options = webdriver.ChromeOptions()
+            options.add_argument("headless")
+            browser = webdriver.Chrome(options=options)
+            browser.get('file://{}/{}.html'.format(dir,re.sub('[^A-Za-z0-9_\-\.]','',entry.id)))
+            html = browser.page_source
+            browser.quit()
+
+            soup = BeautifulSoup(html, "html.parser")
+            tags = soup.select(selector)
+
+            content = ""
+            for tag in tags:
+                content+=tag.text.strip()
+
+            return content
+        except Exception as e:
+            raise e
+        
+    def processEntry(self):
+        entry = self.DATA
+        lang = self.LANG
+        attribtuon = self.ATTRIBUTION
+        try:
+            content = self.getWebContent()
+            entry.update({'content':{lang:content}})
+            entry.update({'_id':entry.id})
+            if 'summary' in entry: entry.update({'summary':{lang:entry.summary}})
+            if 'title' in entry: entry.update({'title':{lang:entry.title}})
+            if 'published' in entry: entry.update({'published':datetime.strptime(entry.published,'%a, %d %b %Y %H:%M:%S %Z')})
+            if 'media_thumbnail' in entry: entry.update({'media_thumbnail':entry.media_thumbnail[0]['url']})
+            if 'tags' in entry: entry.update({'tags':[tag['term'] for tag in entry.tags]})
+            if 'authors' in entry: entry.update({'authors':[author['name'] for author in entry.authors]})
+            entry.update({'lang':lang})
+            entry.update({'attribution':attribtuon})
+            self.DATA = entry
+            return self.DATA
+        except Exception as e:
+            raise e
+
+class Crawler:
+    def __init__(self,MDB_URL,MDB_DB,FEED_CONFIG,PID):
+        self.MDB_DB=MDB_DB
+        self.MDB_URL=MDB_URL
+        self.FEED_CONFIG=FEED_CONFIG
+        self.PID=PID
+        self.CRAWL_ID=FEED_CONFIG['_id']
+        self.MDB_CLIENT=self.connect()
+        signal.signal(signal.SIGTERM, self.signal_handler)
+    
+    def signal_handler(self,sig,frame):
+        print('SIGTERM received, shutting down')
+        self.updateFeed({"$set":{'crawl.end':datetime.now(),'crawl.status':'stopped','status':"stopped"}})
+        crawl = self.MDB_CLIENT[self.MDB_DB]['feeds'].find_one({'_id':self.FEED_CONFIG['_id']},{'crawl':1})['crawl']
+        crawl.update({'feed_id':self.FEED_CONFIG['_id']})
+        self.MDB_CLIENT[self.MDB_DB]['logs'].insert_one(crawl)
+        self.MDB_CLIENT.close()
+        print('Caught the SystemExit exception while running crawl {}'.format(self.CRAWL_ID))
+    
+    def connect(self):
+        try:
+            client = pymongo.MongoClient(self.MDB_URL)
+            client.admin.command('ping')
+            try:
+                client.get_database(self.MDB_DB)
+                print("Crawler {} successfully connected to MongoDB {} database!".format(self.CRAWL_ID,self.MDB_DB))
+                return client
+            except Exception as e:
+                print(e)
+                print("Crawler {}  failed to connect to {}. Quitting.".format(self.CRAWL_ID,self.MDB_DB))
+                exit()
         except Exception as e:
             print(e)
-            print("Failed to connect to {}. Quitting.".format(MDB_DB))
+            print("Crawler {} failed to connect to MongoDB. Quitting.")
             exit()
-    except Exception as e:
-        print(e)
-        print("Failed to connect to MongoDB. Quitting.")
-        exit()
 
-def openai():
-    if getenv("OPENAIAPIKEY") and getenv("OPENAIDEPLOYMENT") and getenv("OPENAIENDPOINT"):
+    def updateFeed(self,update):
         try:
-            client = AzureOpenAI(
-                api_key = getenv("OPENAIAPIKEY"),  
-                api_version = "2023-12-01-preview",
-                azure_endpoint = getenv("OPENAIENDPOINT")
-            )
-            print("Successfully created AzureOpenAI client!")
-            return [client,"azure_openai"]
+            self.MDB_CLIENT[self.MDB_DB]['feeds'].update_one({'_id':self.FEED_CONFIG['_id']},update)
+            return
         except Exception as e:
             raise e
-    elif getenv("OPENAIAPIKEY"):
+    
+    def insertEntry(self,session,entry):
         try:
-            client = OpenAI(api_key = getenv("OPENAIAPIKEY"))
-            print("Successfully created OpenAI client!")
-            return [client,"openai"]
+            docs_collection = self.MDB_CLIENT[self.MDB_DB].docs
+            logs_collection = self.MDB_CLIENT[self.MDB_DB].logs
+            docs_collection.insert_one(entry,session=session)
+            logs_collection.update_one({'_id':self.CRAWL_ID},{"$push":{"inserted":entry['id']}},session=session)
+            print("Crawler {}: Entry update transaction successful".format(self.CRAWL_ID))
+            return
+        except pymongo.errors.DuplicateKeyError:
+            print("Crawl {} entry {} already exists in database".format(self.CRAWL_ID,entry['id']))
+            raise Exception("Entry id {} already exists".format(entry['id']))
         except Exception as e:
             raise e
-
-def getWebContent(entry,selector,dir):
-    try:
-        headers = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.96 Safari/537.36"}
-        r = requests.get(
-                entry.link,
-                headers=headers
-            ).text
-        file = open('{}/{}.html'.format(dir,re.sub('[^A-Za-z0-9_\-.]','',entry.id)),'wt')
-        file.write(r)
-        file.close()
-
-        options = webdriver.ChromeOptions()
-        options.add_argument("headless")
-        browser = webdriver.Chrome(options=options)
-        browser.get('file://{}/{}.html'.format(dir,re.sub('[^A-Za-z0-9_\-\.]','',entry.id)))
-        html = browser.page_source
-        browser.quit()
-
-        soup = BeautifulSoup(html, "html.parser")
-        tags = soup.select(selector)
-
-        content = ""
-        for tag in tags:
-            content+=tag.text.strip()
-
-        return content
-    except Exception as e:
-        raise e
-
-def processEntry(entry,config,dir):
-    try:
-        content = getWebContent(entry,config['content_html_selector'],dir)
-        entry.update({'content':{config['lang']:content}})
-        if 'summary' in entry: entry.update({'summary':{config['lang']:entry.summary}})
-        if 'title' in entry: entry.update({'title':{config['lang']:entry.title}})
-        if 'published' in entry: entry.update({'published':datetime.strptime(entry.published,'%a, %d %b %Y %H:%M:%S %Z')})
-        if 'media_thumbnail' in entry: entry.update({'media_thumbnail':entry.media_thumbnail[0]['url']})
-        if 'tags' in entry: entry.update({'tags':[tag['term'] for tag in entry.tags]})
-        if 'authors' in entry: entry.update({'authors':[author['name'] for author in entry.authors]})
-        entry.update({'lang':config['lang']})
-        entry.update({'attribution':config['attribution']})
-        return entry
-    except Exception as e:
-        raise e
-
-def embed(content,client,type):
-    if type == "azure_openai":
-        response = client.embeddings.create(
-            input=content,
-            model=getenv("OPENAIDEPLOYMENT")
-        )
-        return {"provider":"AzureOpenAI","model":getenv("OPENAIDEPLOYMENT"),"dimensions":len(response.data[0].embedding),"vector":response.data[0].embedding}
-    elif type == "openai":
-        response = client.embeddings.create(
-            input=content,
-            model="text-embedding-3-large",
-            dimensions=256
-        )
-        return {"provider":"OpenAI","model":"text-embedding-3-large","dimensions":len(response.data[0].embedding),"vector":response.data[0].embedding}
-    else:
-        raise "Unrecognised client type {} passed to embed function".format(type)
-    
-def addEntry(session,logId=None,entry=None):
-    try:
-        docs_collection = session.client[MDB_DB].docs
-        logs_collection = session.client[MDB_DB].logs
-        resp = docs_collection.insert_one(entry,session=session)
-        logs_collection.update_one({'_id':logId},{"$push":{"crawled":entry.id,"inserted":bson.ObjectId(resp.inserted_id)}},session=session)
-    
-        print("Entry update transaction successful")
-        return
-    except Exception as e:
-        raise e
-
-def crawl(config):
-    r = db['logs'].insert_one({'feedId':config['_id'],'start':datetime.now(),'crawled':[],'inserted':[],'errors':[]})
-    logId = bson.ObjectId(r.inserted_id)
-    db['feeds'].update_one({'_id':config['_id']},{"$set":{'status':'running','crawlId':logId}})
-    date_format = '%a, %d %b %Y %H:%M:%S %Z'
-    dir  = '{}/{}/{}'.format(getcwd(),'temp',config['_id'])
-    try:
-        makedirs(dir,exist_ok=True)
-    except FileExistsError:
-        pass
-
-    feed = feedparser.parse(config['url'])
-    db['feeds'].update_one({'_id':config['_id']},{"$set":{'lastCrawl':datetime.now()}})
-    if 'lastCrawl' in config:
-        lastCrawl = config["lastCrawl"]
-        if lastCrawl < datetime.strptime(feed.feed.updated,date_format):
-            for entry in feed.entries:
-                entry_date = datetime.strptime(entry.published,date_format)
-                if entry_date > lastCrawl:
-                    try:
-                        entry = processEntry(entry,config,dir)
-                        entry.update({'embedding':embed("{}. {}".format(entry.title,entry['content'][config['lang']]),openai_client,openai_type)})
-                        with client.start_session() as session:
-                            session.with_transaction(lambda session: addEntry(session,logId=logId,entry=entry))
-                    except Exception:
-                        e = traceback.format_exc()
-                        db['logs'].update_one({'_id':logId},{'$push':{'errors':{'entryId':entry.id,'error':e}}})
-
-    else:
-        for entry in feed.entries:
-            try:
-                entry = processEntry(entry,config,dir)
-                with client.start_session() as session:
-                    session.with_transaction(lambda session: addEntry(session,logId=logId,entry=entry))
-            except Exception:
-                e = traceback.format_exc()
-                db['logs'].update_one({'_id':logId},{'$push':{'errors':{'entryId':entry.id,'error':e}}})
-
-    db['logs'].update_one({'_id':logId},{"$set":{'end':datetime.now()}})
-    db['feeds'].update_one({'_id':config['_id']},{"$set":{'status':'stopped'}})
-    rmtree(dir)
-    return logId
-
-client, db = connect(MDB_URI)
-openai_client,openai_type = openai()
         
+    def processItem(self,item,dir):
+        try:
+            entry = Entry(item,dir,self.FEED_CONFIG['content_html_selector'],self.FEED_CONFIG['lang'],self.FEED_CONFIG['attribution']).processEntry()
+            try:
+                self.updateFeed({"$push":{"crawl.crawled":entry['link']}})
+                with self.MDB_CLIENT.start_session() as session:
+                    session.with_transaction(lambda session: self.insertEntry(session,entry))
+            except Exception as e:
+                t = traceback.format_exc()
+                print("Crawler {} failed to insert entry for item {}".format(self.CRAWL_ID,entry['id']),t)
+                self.updateFeed({'$push':{'crawl.errors':{'entryId':entry['id'],'error':e}}})
+        except Exception as e:
+            t = traceback.format_exc()
+            print("Crawler {} failed to create Entry object for item {}".format(self.CRAWL_ID,item['id']),e)
+            self.updateFeed({'$push':{'crawl.errors':{'entryId':item['id'],'error':e}}})
+    
+    def start(self):
+        config = self.FEED_CONFIG
+        crawlId = self.CRAWL_ID
+        crawl = {'pid':self.PID,'status':'running','start':datetime.now(),'crawled':[],'inserted':[],'errors':[]}
+        
+        self.updateFeed({"$set":{'crawl':crawl,'status':'running','crawl_date':crawl['start']}})
+        date_format = '%a, %d %b %Y %H:%M:%S %Z'
+        dir  = '{}/{}/{}'.format(getcwd(),'temp',config['_id'])
+        try:
+            makedirs(dir,exist_ok=True)
+        except FileExistsError:
+            pass
 
+        feed = feedparser.parse(config['url'])
+        if 'crawl_date' in config:
+            if config['crawl_date'] < datetime.strptime(feed.feed.updated,date_format):
+                for item in feed.entries:
+                    item_date = datetime.strptime(item.published,date_format)
+                    if item_date > config['crawl_date']:
+                        self.processItem(item,dir)
+
+        else:
+            for item in feed.entries:
+                self.processItem(item,dir)
+
+        rmtree(dir)
+        self.updateFeed({"$set":{'crawl.end':datetime.now(),'crawl.status':'finished','status':"stopped"}})
+        crawl = self.MDB_CLIENT[self.MDB_DB]['feeds'].find_one({'_id':self.FEED_CONFIG['_id']},{'crawl':1})['crawl']
+        crawl.update({'feed_id':self.FEED_CONFIG['_id']})
+        self.MDB_CLIENT[self.MDB_DB]['logs'].insert_one(crawl)
+        
+        self.MDB_CLIENT.close()
+        print('Stopping crawl {}'.format(crawlId))
