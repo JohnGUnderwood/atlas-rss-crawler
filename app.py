@@ -65,7 +65,7 @@ setup()
 @app.get("/feeds")
 def getFeeds():
     try:
-        feedList = list(db['feeds'].find({}).sort('crawl_date',-1))
+        feedList = list(db['feeds'].find({}))
         return returnPrettyJson(feedList), 200
     except Exception as e:
         return returnPrettyJson(e),500

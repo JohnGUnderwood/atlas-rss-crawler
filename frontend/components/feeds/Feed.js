@@ -3,78 +3,91 @@ import styles from "./feeds.module.css";
 import axios from 'axios';
 import ExpandableCard from "@leafygreen-ui/expandable-card";
 import { Label, Description, Overline, Link} from "@leafygreen-ui/typography";
-import { useState, useEffect } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import Button from "@leafygreen-ui/button";
 
-export default function Feed({feed}){
+export default function Feed({f}){
     const [lastCrawl, setLastCrawl] = useState(null)
-    // const [status, setStatus] = useState(feed.status)
-
-    useEffect(()=>{
-    },[feed])
+    const [feed, setFeed] = useState(f);
+    const intervalId = useRef();
 
 
+    useEffect(() => {
+        if (feed.status && feed.status !== 'stopped') {
+            console.log(feed.status);
+            intervalId.current = setInterval(() => {
+                fetchFeed(feed._id).then(response => {
+                    console.log('fetching feed');
+                    setFeed(response.data);
+                });
+            }, 1000);
+        } else {
+            clearInterval(intervalId.current);
+        }
+    
+        // Clean up on unmount
+        return () => clearInterval(intervalId.current);
+    }, [feed]);
 
     const start = (id) => {
-        startCrawl(id)
-            .then(r => {
-                feed = {...feed, 'status': r.data.insert.status}
-
-            })
-            .catch(e => {
-                console.log(e)
-            })
+        setFeed(prevFeed => ({...prevFeed, status: 'starting'}))
+        startCrawl(id).catch(e => console.log(e));
     };
 
     const stop = (id) => {
-        stopCrawl(id);
+        setFeed(prevFeed => ({...prevFeed, status: 'stopping'}))
+        stopCrawl(id).catch(e => console.log(e));
     };
 
     return (
         <ExpandableCard
             style={{marginTop:"10px"}}
-            title={`${feed.attribution} - ${feed._id}`}
+            title={`${feed.config.attribution} - ${feed._id}`}
             description={`${feed.status? feed.status : 'stopped'}`}
             darkMode={false}
         >
             <div style={{ display: "grid", gridTemplateRows: "repeat(4, 1fr)", gap: "10px" }}>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "10px" }}>
                     <p>
-                        <span style={{ fontWeight: "bold" }}>URL: </span><span><Link>{feed.url}</Link></span>
+                        <span style={{ fontWeight: "bold" }}>URL: </span><span><Link>{feed.config.url}</Link></span>
                     </p>
                     <p>
-                        <span style={{ fontWeight: "bold" }}>CSS Selector: </span><span>{feed.content_html_selector}</span>
+                        <span style={{ fontWeight: "bold" }}>CSS Selector: </span><span>{feed.config.content_html_selector}</span>
                     </p>
                     <p>
-                        <span style={{ fontWeight: "bold" }}>Language: </span><span>{feed.lang}</span>
+                        <span style={{ fontWeight: "bold" }}>Language: </span><span>{feed.config.lang}</span>
                     </p>
                     <Button>Test</Button>
-
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "10px" }}>
-                    <p>
-                        <span style={{ fontWeight: "bold" }}>Last Crawled: </span><span>{feed.lastCrawl ? `${getElapsedTime(new Date(feed.lastCrawl.start.$date), new Date())} ago` : 'Never'}</span>
-                    </p>
-                    {
-                        feed.lastCrawl ?
+                <div>
+                    <div>
+                        <span style={{ fontWeight: "bold" }}>Last Crawled: </span><span>{feed.crawl ? `${getElapsedTime(new Date(feed.crawl.start.$date), new Date())} ago` : 'Never'}</span>
+                    </div>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "10px" }}>
+                        {
+                            feed.crawl ?
                             <>
                             
-                                <p>
-                                    <span style={{ fontWeight: "bold" }}>Crawled items: </span><span>{feed.lastCrawl.crawled?.length}</span>
-                                </p>
-                                <p>
-                                    <span style={{ fontWeight: "bold" }}>Inserted items: </span><span>{feed.lastCrawl.inserted?.length}</span>
-                                </p>
-                                <p>
-                                    <span style={{ fontWeight: "bold" }}>Errors: </span><span>{feed.lastCrawl.errors?.length}</span>
-                                </p>
+                            <p>
+                                <span style={{ fontWeight: "bold" }}>Crawled items: </span><span>{feed.crawl.crawled?.length}</span>
+                            </p>
+                            <p>
+                                <span style={{ fontWeight: "bold" }}>Inserted items: </span><span>{feed.crawl.inserted?.length}</span>
+                            </p>
+                            <p>
+                                <span style={{ fontWeight: "bold" }}>Skipped items: </span><span>{feed.crawl.skipped?.length}</span>
+                            </p>
+                            <p>
+                                <span style={{ fontWeight: "bold" }}>Errors: </span><span>{feed.crawl.errors?.length}</span>
+                            </p>
                             </>
                             : <></>
-                    }
+                        }
+                    </div>
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "10px" }}>
                     <Button variant="primary" onClick={() => start(feed._id)}>Start</Button>
-                    <Button variant="dangerOutline" onClick={() => stop(feed.crawlId.$oid)}>Stop</Button>
+                    <Button variant="dangerOutline" onClick={() => stop(feed._id)}>Stop</Button>
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "10px" }}>
                     <Button variant="dangerOutline">Clear Crawl History</Button>
@@ -105,9 +118,9 @@ function getElapsedTime(date1, date2) {
     }
 }
 
-async function getCrawl(crawlId) {
+async function fetchFeed(feedId) {
     return new Promise((resolve) => {
-        axios.get(`${process.env.NEXT_PUBLIC_FEEDS_URL}:${process.env.NEXT_PUBLIC_FEEDS_PORT}/crawl/${crawlId}`)
+        axios.get(`${process.env.NEXT_PUBLIC_FEEDS_URL}:${process.env.NEXT_PUBLIC_FEEDS_PORT}/feed/${feedId}`)
         .then(response => resolve(response))
         .catch((error) => {
             console.log(error)
@@ -127,22 +140,9 @@ async function startCrawl(feedId) {
     });
 }
 
-async function stopCrawl(crawlId) {
-    if(!crawlId) return;
+async function stopCrawl(feedId) {
     return new Promise((resolve) => {
-        axios.get(`${process.env.NEXT_PUBLIC_FEEDS_URL}:${process.env.NEXT_PUBLIC_FEEDS_PORT}/crawl/${crawlId}/stop`)
-        .then(response => resolve(response))
-        .catch((error) => {
-            console.log(error)
-            resolve(error.response.data);
-        })
-    });
-}
-
-async function getFeed(id) {
-    if(!id) return;
-    return new Promise((resolve) => {
-        axios.get(`${process.env.NEXT_PUBLIC_FEEDS_URL}:${process.env.NEXT_PUBLIC_FEEDS_PORT}/feed/${id}`)
+        axios.get(`${process.env.NEXT_PUBLIC_FEEDS_URL}:${process.env.NEXT_PUBLIC_FEEDS_PORT}/feed/${feedId}/stop`)
         .then(response => resolve(response))
         .catch((error) => {
             console.log(error)

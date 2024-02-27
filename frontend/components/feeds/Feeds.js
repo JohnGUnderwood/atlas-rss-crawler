@@ -8,20 +8,28 @@ export default function Feeds(){
     const [feeds,setFeeds] = useState([])
 
     useEffect(()=>{
-        getFeeds()
-            .then(r => {
-                setFeeds(r.data);
-            })
-            .catch(e => {
+        const fetchFeeds = async () => {
+            console.log("fetching feeds")
+            try {
+                const response = await getFeeds();
+                setFeeds(response.data);
+            } catch (e) {
                 console.log(e);
-            })
+            }
+        };
+    
+        fetchFeeds();  // fetch feeds immediately
+    
+        // const intervalId = setInterval(fetchFeeds, 20000);  // fetch feeds every 60 seconds
+    
+        // return () => clearInterval(intervalId);  // clear interval on component unmount
     },[])
 
     return (
         <div>
         {
             feeds?.map(f => (
-                <Feed key={f._id} feed={f}/>
+                <Feed key={f._id} f={f}/>
             ))
         }
         </div>
