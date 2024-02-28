@@ -3,9 +3,11 @@ from multiprocessing import Process, Queue
 import os
 import signal
 import pymongo
+from pymongo import ReturnDocument
 from time import sleep
 from concurrent.futures import ProcessPoolExecutor
 import traceback
+from datetime import datetime
 
 def connect():
     try:
@@ -32,18 +34,24 @@ def startProcess(config,feed_id):
         crawler= Crawler(MDB_URL=os.getenv("MDBCONNSTR"),MDB_DB=os.getenv("MDB_DB"),FEED_CONFIG=config,PID=os.getpid())
         print("Running crawl: ",feed_id)
         crawler.start()
+        client,db = connect()
+        crawl = db['feeds'].find_one_and_update(
+            {'_id':config['_id']},
+            {"$set":{'crawl.end':datetime.now(),'status':'finished'}},
+            return_document=ReturnDocument.AFTER
+        )['crawl']
+        crawl.update({'feed_id':config['_id']})
+        db['logs'].insert_one(crawl)
         print("Finished. Crawl log: {}".format(feed_id))
     except Exception:
         print(traceback.format_exc())
 
 def killProcess(pid,crawlId):
-    client,db = connect()
     try: 
         os.kill(pid, signal.SIGTERM)
         print("Stopped crawl: {}".format(crawlId))
     except Exception:
         print(traceback.format_exc())
-    finally: client.close()
     
 
 def fetch_data(q):

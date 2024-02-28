@@ -147,11 +147,10 @@ class Crawler:
         try:
             entry = Entry(item,dir,self.FEED_CONFIG['content_html_selector'],self.FEED_CONFIG['lang'],self.FEED_CONFIG['attribution']).processEntry()
             try:
-                self.updateFeed({"$push":{"crawl.crawled":entry['link']}})
                 with self.MDB_CLIENT.start_session() as session:
                     session.with_transaction(lambda session: self.insertEntry(session,entry))
             except DuplicateEntryException as e:
-                self.updateFeed({'$push':{'crawl.skipped':entry['id']}})
+                self.updateFeed({'$push':{'crawl.duplicates':entry['id']}})
             except Exception as e:
                 print("Crawler {} failed to insert entry for item {}".format(self.CRAWL_ID,entry['id']),e)
                 self.updateFeed({'$push':{'crawl.errors':{'entryId':entry['id'],'error':str(e)}}})
@@ -162,7 +161,7 @@ class Crawler:
     def start(self):
         config = self.FEED_CONFIG
         crawlId = self.CRAWL_ID
-        crawl = {'pid':self.PID,'crawled':[],'inserted':[],'skipped':[],'errors':[]}
+        crawl = {'pid':self.PID,'crawled':[],'inserted':[],'duplicates':[],'errors':[],'skipped':[]}
         self.updateFeed({"$set":{'crawl':crawl,'status':'running'}})
 
         date_format = '%a, %d %b %Y %H:%M:%S %Z'
@@ -173,26 +172,26 @@ class Crawler:
             pass
 
         feed = feedparser.parse(config['url'])
-        start = datetime.now()
-        self.updateFeed({"$set":{'crawl.start':start,'config.last_crawl_date':start}})
-        if 'last_crawl_date' in config:
-            if config['last_crawl_date'] < datetime.strptime(feed.feed.updated,date_format):
+        self.updateFeed({"$set":{'crawl.start':datetime.now()}})
+
+        if 'last_crawl_date' not in config:
+            for item in feed.entries:
+                self.updateFeed({"$push":{"crawl.crawled":item['id']}})
+                self.processItem(item,dir)
+        else:
+            updated = datetime.strptime(feed.feed.updated,date_format)
+            if updated > config['last_crawl_date']:
                 for item in feed.entries:
+                    self.updateFeed({"$push":{"crawl.crawled":item['id']}})
                     item_date = datetime.strptime(item.published,date_format)
                     if item_date > config['last_crawl_date']:
                         self.processItem(item,dir)
-
-        else:
-            for item in feed.entries:
-                self.processItem(item,dir)
+                    else:
+                        self.updateFeed({'$push':{'crawl.skipped':item['id']}})
+            else:
+                self.updateFeed({'$set':{'crawl.skipped':[item['id'] for item in feed.entries]}})
 
         rmtree(dir)
-        crawl = self.MDB_CLIENT[self.MDB_DB]['feeds'].find_one_and_update(
-            {'_id':self.FEED_CONFIG['_id']},
-            {"$set":{'crawl.end':datetime.now(),'status':'stopped'}},
-            return_document=ReturnDocument.AFTER
-        )['crawl']
-        crawl.update({'feed_id':self.FEED_CONFIG['_id']})
-        self.MDB_CLIENT[self.MDB_DB]['logs'].insert_one(crawl)
         self.MDB_CLIENT.close()
         print('Stopping crawl {}'.format(crawlId))
+        return

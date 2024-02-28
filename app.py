@@ -1,9 +1,8 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS, cross_origin
 from bson.json_util import dumps
-import bson
+from pymongo import ReturnDocument
 import json
-from datetime import datetime
 from feeds import feeds
 from crawler import Entry
 import feedparser
@@ -98,8 +97,9 @@ def getFeedCrawlHistory(feedId):
 def deleteFeedCrawlHistory(feedId):
     try:
         db['logs'].delete_many({'feed_id':feedId})
-        update = db['feeds'].find_one_and_update({'_id':feedId},{"$unset":{'crawl':""}},{'returnDocument':'after'})
-        return returnPrettyJson(update),200
+        db['feeds'].update({'_id':feedId},{"$unset":{'crawl':1}})
+        r = db['feeds'].find_one({'_id':feedId})
+        return returnPrettyJson(r),200
     except Exception as e:
         return returnPrettyJson(e),500
 
@@ -137,8 +137,7 @@ def queueCrawl(feedId):
             return returnPrettyJson({'msg':'Feed {} already in queue to start'.format(feedId)}),200
         
         f = db['feeds'].find_one({'_id':feedId},{'status':1,"crawl":1,'config':1,'last_crawl_date':"$crawl.start"})
-        
-        if not 'status' in f or f['status'] == 'stopped':
+        if not 'status' in f or f['status'] == 'stopped' or f['status'] == 'finished':
             crawlConfig = f['config']
 
             if 'last_crawl_date' in f:

@@ -13,7 +13,7 @@ export default function Feed({f}){
 
 
     useEffect(() => {
-        if (feed.status && feed.status !== 'stopped' && feed.status !== 'stopping') {
+        if (feed.status && feed.status !== 'stopped' && feed.status !== 'stopping' && feed.status !== 'finished') {
             console.log(feed.status);
             intervalId.current = setInterval(() => {
                 fetchFeed(feed._id).then(response => {
@@ -21,10 +21,16 @@ export default function Feed({f}){
                     setFeed(response.data);
                 });
             }, 3000);
+        } else if (feed.status === 'stopping') {
+            intervalId.current = setInterval(() => {
+                fetchFeed(feed._id).then(response => {
+                    console.log('fetching feed');
+                    setFeed(response.data);
+                });
+            }, 5000);
         } else {
             clearInterval(intervalId.current);
         }
-    
         // Clean up on unmount
         return () => clearInterval(intervalId.current);
     }, [feed]);
@@ -44,13 +50,7 @@ export default function Feed({f}){
     };
 
     const clear = (id) => {
-        clearCrawlHistory(id).then(
-            fetchFeed(feed._id).then(response => {
-                console.log('fetching feed');
-                setFeed(response.data);
-            }).catch(e=>console.log(e))
-        ).catch(e => console.log(e));
-
+        clearCrawlHistory(id).then(response => setFeed(response.data)).catch(e => console.log(e));
     };
 
     return (
@@ -76,11 +76,15 @@ export default function Feed({f}){
                 <div>
                     <div>
                         <span style={{ fontWeight: "bold" }}>Last Crawled: </span><span>{feed.crawl ? `${getElapsedTime(new Date(feed.crawl.start?.$date), new Date())} ago` : 'Never'}</span>
-                    </div>
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "10px" }}>
+                    
+                    
                         {
                             feed.crawl ?
-                            <>
+                            feed.crawl.skipped.length >= feed.crawl.crawled.length?
+                            <p>
+                                <span>No new entries found.</span>
+                            </p>
+                            :<div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "10px" }}>
                             
                             <p>
                                 <span style={{ fontWeight: "bold" }}>Crawled items: </span><span>{feed.crawl.crawled?.length}</span>
@@ -92,16 +96,19 @@ export default function Feed({f}){
                                 <span style={{ fontWeight: "bold" }}>Skipped items: </span><span>{feed.crawl.skipped?.length}</span>
                             </p>
                             <p>
+                                <span style={{ fontWeight: "bold" }}>Duplicates found: </span><span>{feed.crawl.duplicates?.length}</span>
+                            </p>
+                            <p>
                                 <span style={{ fontWeight: "bold" }}>Errors: </span><span>{feed.crawl.errors?.length}</span>
                             </p>
-                            </>
-                            : <></>
+                            </div>
+                            :<></>
                         }
                     </div>
+                    
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "10px" }}>
-                    {feed.status == 'stopped'?<Button variant="primary" onClick={() => start(feed._id)}>Start</Button>
-                    :feed.status == 'running'?<Button variant="danger" onClick={() => stop(feed._id)}>Stop</Button>
+                    {feed.status == 'running'?<Button variant="danger" onClick={() => stop(feed._id)}>Stop</Button>
                     :feed.status == 'starting'? <Button variant="primaryOutline">Start</Button>
                     :feed.status == 'stopping'? <Button variant="dangerOutline">Stop</Button>
                     :<Button variant="primary" onClick={() => start(feed._id)}>Start</Button>}
