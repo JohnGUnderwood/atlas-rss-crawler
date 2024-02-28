@@ -13,14 +13,14 @@ export default function Feed({f}){
 
 
     useEffect(() => {
-        if (feed.status && feed.status !== 'stopped') {
+        if (feed.status && feed.status !== 'stopped' && feed.status !== 'stopping') {
             console.log(feed.status);
             intervalId.current = setInterval(() => {
                 fetchFeed(feed._id).then(response => {
                     console.log('fetching feed');
                     setFeed(response.data);
                 });
-            }, 1000);
+            }, 3000);
         } else {
             clearInterval(intervalId.current);
         }
@@ -30,13 +30,27 @@ export default function Feed({f}){
     }, [feed]);
 
     const start = (id) => {
-        setFeed(prevFeed => ({...prevFeed, status: 'starting'}))
-        startCrawl(id).catch(e => console.log(e));
+        startCrawl(id).then(r => {
+            console.log(r);
+            setFeed(prevFeed => ({...prevFeed, status: r.data.status}))
+        }).catch(e => console.log(e));
     };
 
     const stop = (id) => {
-        setFeed(prevFeed => ({...prevFeed, status: 'stopping'}))
-        stopCrawl(id).catch(e => console.log(e));
+        stopCrawl(id).then(r => {
+            console.log(r);
+            setFeed(prevFeed => ({...prevFeed, status: r.data.status}))
+        }).catch(e => console.log(e));
+    };
+
+    const clear = (id) => {
+        clearCrawlHistory(id).then(
+            fetchFeed(feed._id).then(response => {
+                console.log('fetching feed');
+                setFeed(response.data);
+            }).catch(e=>console.log(e))
+        ).catch(e => console.log(e));
+
     };
 
     return (
@@ -46,7 +60,7 @@ export default function Feed({f}){
             description={`${feed.status? feed.status : 'stopped'}`}
             darkMode={false}
         >
-            <div style={{ display: "grid", gridTemplateRows: "repeat(4, 1fr)", gap: "10px" }}>
+            <div style={{ display: "grid", gridTemplateRows: "repeat(3, 1fr)", gap: "10px" }}>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "10px" }}>
                     <p>
                         <span style={{ fontWeight: "bold" }}>URL: </span><span><Link>{feed.config.url}</Link></span>
@@ -61,7 +75,7 @@ export default function Feed({f}){
                 </div>
                 <div>
                     <div>
-                        <span style={{ fontWeight: "bold" }}>Last Crawled: </span><span>{feed.crawl ? `${getElapsedTime(new Date(feed.crawl.start.$date), new Date())} ago` : 'Never'}</span>
+                        <span style={{ fontWeight: "bold" }}>Last Crawled: </span><span>{feed.crawl ? `${getElapsedTime(new Date(feed.crawl.start?.$date), new Date())} ago` : 'Never'}</span>
                     </div>
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "10px" }}>
                         {
@@ -85,12 +99,13 @@ export default function Feed({f}){
                         }
                     </div>
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "10px" }}>
-                    <Button variant="primary" onClick={() => start(feed._id)}>Start</Button>
-                    <Button variant="dangerOutline" onClick={() => stop(feed._id)}>Stop</Button>
-                </div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "10px" }}>
-                    <Button variant="dangerOutline">Clear Crawl History</Button>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "10px" }}>
+                    {feed.status == 'stopped'?<Button variant="primary" onClick={() => start(feed._id)}>Start</Button>
+                    :feed.status == 'running'?<Button variant="danger" onClick={() => stop(feed._id)}>Stop</Button>
+                    :feed.status == 'starting'? <Button variant="primaryOutline">Start</Button>
+                    :feed.status == 'stopping'? <Button variant="dangerOutline">Stop</Button>
+                    :<Button variant="primary" onClick={() => start(feed._id)}>Start</Button>}
+                    <Button variant="dangerOutline" onClick={() => clear(feed._id)}>Clear Crawl History</Button>
                     <Button variant="danger">Delete Docs</Button>
                 </div>
             </div>
@@ -143,6 +158,17 @@ async function startCrawl(feedId) {
 async function stopCrawl(feedId) {
     return new Promise((resolve) => {
         axios.get(`${process.env.NEXT_PUBLIC_FEEDS_URL}:${process.env.NEXT_PUBLIC_FEEDS_PORT}/feed/${feedId}/stop`)
+        .then(response => resolve(response))
+        .catch((error) => {
+            console.log(error)
+            resolve(error.response.data);
+        })
+    });
+}
+
+async function clearCrawlHistory(feedId) {
+    return new Promise((resolve) => {
+        axios.get(`${process.env.NEXT_PUBLIC_FEEDS_URL}:${process.env.NEXT_PUBLIC_FEEDS_PORT}/feed/${feedId}/history/clear`)
         .then(response => resolve(response))
         .catch((error) => {
             console.log(error)

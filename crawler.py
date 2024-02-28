@@ -2,9 +2,8 @@ from os import getenv, getcwd, makedirs
 from shutil import rmtree
 import feedparser
 from datetime import datetime
-import bson
 import pymongo
-import traceback
+from pymongo import ReturnDocument
 import requests
 from bs4 import BeautifulSoup
 from selenium import webdriver
@@ -93,9 +92,13 @@ class Crawler:
     
     def signal_handler(self,sig,frame):
         print('SIGTERM received, shutting down')
-        self.MDB_CLIENT[self.MDB_DB]['feeds'].update_one({'_id':self.FEED_CONFIG['_id']},{"$set":{'crawl.end':datetime.now(),'status':'stopped'}})
-        crawl = self.MDB_CLIENT[self.MDB_DB]['feeds'].find_one({'_id':self.FEED_CONFIG['_id']},{'crawl':1})['crawl']
+        crawl = self.MDB_CLIENT[self.MDB_DB]['feeds'].find_one_and_update(
+            {'_id':self.FEED_CONFIG['_id']},
+            {"$set":{'crawl.end':datetime.now(),'status':'stopped'}},
+            return_document=ReturnDocument.AFTER
+        )['crawl']
         crawl.update({'feed_id':self.FEED_CONFIG['_id']})
+        self.MDB_CLIENT[self.MDB_DB]['logs'].insert_one(crawl)
         self.MDB_CLIENT[self.MDB_DB]['logs'].insert_one(crawl)
         self.MDB_CLIENT.close()
         rmtree(self.DIR)
@@ -129,9 +132,9 @@ class Crawler:
     def insertEntry(self,session,entry):
         try:
             docs_collection = self.MDB_CLIENT[self.MDB_DB].docs
-            logs_collection = self.MDB_CLIENT[self.MDB_DB].logs
+            feeds_collection = self.MDB_CLIENT[self.MDB_DB].feeds
             docs_collection.insert_one(entry,session=session)
-            logs_collection.update_one({'_id':self.CRAWL_ID},{"$push":{"inserted":entry['id']}},session=session)
+            feeds_collection.update_one({'_id':self.CRAWL_ID},{"$push":{"crawl.inserted":entry['id']}},session=session)
             print("Crawler {}: Entry update transaction successful".format(self.CRAWL_ID))
             return
         except pymongo.errors.DuplicateKeyError:
@@ -184,10 +187,12 @@ class Crawler:
                 self.processItem(item,dir)
 
         rmtree(dir)
-        self.updateFeed({"$set":{'crawl.end':datetime.now(),'status':'stopped'}})
-        crawl = self.MDB_CLIENT[self.MDB_DB]['feeds'].find_one({'_id':self.FEED_CONFIG['_id']},{'crawl':1})['crawl']
+        crawl = self.MDB_CLIENT[self.MDB_DB]['feeds'].find_one_and_update(
+            {'_id':self.FEED_CONFIG['_id']},
+            {"$set":{'crawl.end':datetime.now(),'status':'stopped'}},
+            return_document=ReturnDocument.AFTER
+        )['crawl']
         crawl.update({'feed_id':self.FEED_CONFIG['_id']})
         self.MDB_CLIENT[self.MDB_DB]['logs'].insert_one(crawl)
-        
         self.MDB_CLIENT.close()
         print('Stopping crawl {}'.format(crawlId))

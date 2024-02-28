@@ -97,8 +97,9 @@ def getFeedCrawlHistory(feedId):
 @app.get("/feed/<string:feedId>/history/clear")
 def deleteFeedCrawlHistory(feedId):
     try:
-        delete = db['logs'].delete_many({'feed_id':feedId})
-        return returnPrettyJson(delete),200
+        db['logs'].delete_many({'feed_id':feedId})
+        update = db['feeds'].find_one_and_update({'_id':feedId},{"$unset":{'crawl':""}},{'returnDocument':'after'})
+        return returnPrettyJson(update),200
     except Exception as e:
         return returnPrettyJson(e),500
 
@@ -131,15 +132,22 @@ def testFeed(feedId):
 def queueCrawl(feedId):
     try:
         q = db['queue'].find_one({'feed_id':feedId,'action':'start'})
+        
         if q:
             return returnPrettyJson({'msg':'Feed {} already in queue to start'.format(feedId)}),200
         
-        f = db['feeds'].find_one({'_id':feedId},{'status':1,"crawl":1,'config':1})
+        f = db['feeds'].find_one({'_id':feedId},{'status':1,"crawl":1,'config':1,'last_crawl_date':"$crawl.start"})
+        
         if not 'status' in f or f['status'] == 'stopped':
-            r = db['queue'].insert_one({'action':'start','feed_id':feedId,'config':f['config']})
-            return returnPrettyJson({'config':f['config'],'queued_task':r.inserted_id}),200
+            crawlConfig = f['config']
+
+            if 'last_crawl_date' in f:
+                crawlConfig.update({'last_crawl_date':f['last_crawl_date']})
+
+            r = db['queue'].insert_one({'action':'start','feed_id':feedId,'config':crawlConfig})
+            return returnPrettyJson({'status':'starting','queued_task':r.inserted_id}),200
         elif f['status'] == 'running':
-            return returnPrettyJson({'msg':'Feed {} already running'.format(feedId),'status':f['crawl']}),200
+            return returnPrettyJson({'msg':'Feed {} already running'.format(feedId),'crawl':f['crawl'],'status':f['status']}),200
     except Exception as e:
         return returnPrettyJson(e),500
 
@@ -154,11 +162,11 @@ def queueStopCrawl(feedId):
         if 'status' in f and f['status'] == 'running':
             try:
                 r = db['queue'].insert_one({'action':'stop','feed_id':feedId,'pid':f['pid']})
-                return returnPrettyJson({'pid':f['pid']}),200
+                return returnPrettyJson({'pid':f['pid'],'status':'stopping'}),200
             except Exception as e:
                 return returnPrettyJson(e),500
         elif f['status'] != 'running' or 'status' not in r:
-            return returnPrettyJson({'msg':'Feed {} is not running'.format(feedId)}),200
+            return returnPrettyJson({'msg':'Feed {} is not running'.format(feedId),'status':'stopped'}),200
     except Exception as e:
         return returnPrettyJson(e),500
 
