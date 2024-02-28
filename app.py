@@ -158,14 +158,17 @@ def queueStopCrawl(feedId):
             return returnPrettyJson({'msg':'Feed {} already in queue to stop'.format(feedId)}),200
         
         f = db['feeds'].find_one({'_id':feedId},{"pid":"$crawl.pid",'status':1})
-        if 'status' in f and f['status'] == 'running':
-            try:
-                r = db['queue'].insert_one({'action':'stop','feed_id':feedId,'pid':f['pid']})
-                return returnPrettyJson({'pid':f['pid'],'status':'stopping'}),200
-            except Exception as e:
-                return returnPrettyJson(e),500
-        elif f['status'] != 'running' or 'status' not in r:
-            return returnPrettyJson({'msg':'Feed {} is not running'.format(feedId),'status':'stopped'}),200
+        if 'status' in f:
+            if f['status'] == 'running':
+                try:
+                    r = db['queue'].insert_one({'action':'stop','feed_id':feedId,'pid':f['pid']})
+                    return returnPrettyJson({'pid':f['pid'],'status':'stopping'}),200
+                except Exception as e:
+                    return returnPrettyJson(e),500
+            elif f['status'] != 'running':
+                return returnPrettyJson({'msg':'Feed {} is not running'.format(feedId),'status':f['status']}),200
+        else:
+            return returnPrettyJson({'msg':'Feed {} already stopped'.format(feedId),'status':'not run'}),200
     except Exception as e:
         return returnPrettyJson(e),500
 

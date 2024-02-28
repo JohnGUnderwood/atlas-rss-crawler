@@ -57,7 +57,7 @@ export default function Feed({f}){
         <ExpandableCard
             style={{marginTop:"10px"}}
             title={`${feed.config.attribution} - ${feed._id}`}
-            description={`${feed.status? feed.status : 'stopped'}`}
+            description={`${feed.status? feed.status : 'not run'}`}
             darkMode={false}
         >
             <div style={{ display: "grid", gridTemplateRows: "repeat(3, 1fr)", gap: "10px" }}>
