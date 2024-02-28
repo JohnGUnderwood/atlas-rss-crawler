@@ -16,7 +16,7 @@ def connect():
         client = pymongo.MongoClient(getenv("MDBCONNSTR"))
         client.admin.command('ping')
         try:
-            db = client.get_database(getenv("MDB_DB"))
+            db = client.get_database(getenv("MDB_DB",default="news-search"))
             print("Successfully connected to MongoDB {} database!".format(db.name))
             return client, db
         except Exception as e:

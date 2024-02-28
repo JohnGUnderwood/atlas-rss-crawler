@@ -72,6 +72,10 @@ class Entry:
             if 'media_thumbnail' in entry: entry.update({'media_thumbnail':entry.media_thumbnail[0]['url']})
             if 'tags' in entry: entry.update({'tags':[tag['term'] for tag in entry.tags]})
             if 'authors' in entry: entry.update({'authors':[author['name'] for author in entry.authors]})
+            if 'author' in entry:
+                if not 'authors' in entry:
+                    entry.update({'authors':entry.author})
+            
             entry.update({'lang':lang})
             entry.update({'attribution':attribtuon})
             self.DATA = entry
