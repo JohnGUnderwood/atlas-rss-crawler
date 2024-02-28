@@ -179,17 +179,13 @@ class Crawler:
                 self.updateFeed({"$push":{"crawl.crawled":item['id']}})
                 self.processItem(item,dir)
         else:
-            updated = datetime.strptime(feed.feed.updated,date_format)
-            if updated > config['last_crawl_date']:
-                for item in feed.entries:
-                    self.updateFeed({"$push":{"crawl.crawled":item['id']}})
-                    item_date = datetime.strptime(item.published,date_format)
-                    if item_date > config['last_crawl_date']:
-                        self.processItem(item,dir)
-                    else:
-                        self.updateFeed({'$push':{'crawl.skipped':item['id']}})
-            else:
-                self.updateFeed({'$set':{'crawl.skipped':[item['id'] for item in feed.entries]}})
+            for item in feed.entries:
+                self.updateFeed({"$push":{"crawl.crawled":item['id']}})
+                item_date = datetime.strptime(item.published,date_format)
+                if item_date > config['last_crawl_date']:
+                    self.processItem(item,dir)
+                else:
+                    self.updateFeed({'$push':{'crawl.skipped':item['id']}})
 
         rmtree(dir)
         self.MDB_CLIENT.close()
