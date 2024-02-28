@@ -14,7 +14,7 @@ def connect():
         client = pymongo.MongoClient(os.getenv("MDBCONNSTR"))
         client.admin.command('ping')
         try:
-            db = client.get_database(os.getenv("MDB_DB"))
+            db = client.get_database(os.getenv("MDB_DB",default="news-search"))
             print("Successfully connected to MongoDB {} database!".format(db.name))
             return client, db
         except Exception as e:
@@ -31,7 +31,7 @@ def startProcess(config,feed_id):
         print('Parent process:', os.getppid())
         print('Process id:', os.getpid())
         config.update({'_id':feed_id})
-        crawler= Crawler(MDB_URL=os.getenv("MDBCONNSTR"),MDB_DB=os.getenv("MDB_DB"),FEED_CONFIG=config,PID=os.getpid())
+        crawler=Crawler(MDB_URL=os.getenv("MDBCONNSTR"),MDB_DB=os.getenv("MDB_DB",default="news-search"),FEED_CONFIG=config,PID=os.getpid())
         print("Running crawl: ",feed_id)
         crawler.start()
         client,db = connect()

@@ -1,8 +1,9 @@
 feedparser==6.0.11
 beautifulsoup4==4.11.1
 selenium==4.18.1
-celery==5.3.6
 flask==3.0.2
 watchdog~=3.0
-openai==1.12.0
 flask-cors==4.0.0
+gunicorn==21.2.0
+pymongo==4.6.2
+requests==2.31.0

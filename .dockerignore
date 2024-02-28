@@ -5,7 +5,14 @@
 .github
 
 # Build dependencies
-__pycache__
+__pycache__/
+**/node_modules/
+**/.next/
+*.pyc
+*.pyo
+*.pyd
+.Python
+venv/
 
 # Environment (contains sensitive data)
 .env
@@ -14,3 +21,5 @@ __pycache__
 Dockerfile
 README.md
 screenshots
+testFeed.py
+temp
