@@ -26,7 +26,7 @@ export default function Feeds(){
     },[])
 
     return (
-        <div>
+        <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(500px, 1fr))', gap:'10px', padding:"10px"}}>
         {
             feeds?.map(f => (
                 <Feed key={f._id} f={f}/>

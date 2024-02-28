@@ -7,7 +7,10 @@
   },
   "dependencies": {
     "@leafygreen-ui/button": "^21.0.12",
+    "@leafygreen-ui/code": "^14.2.18",
     "@leafygreen-ui/expandable-card": "^3.0.23",
+    "@leafygreen-ui/loading-indicator": "^2.0.8",
+    "@leafygreen-ui/modal": "^16.0.4",
     "@leafygreen-ui/typography": "^18.2.1",
     "axios": "^1.6.7",
     "dotenv": "^16.4.5",

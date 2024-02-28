@@ -2,13 +2,18 @@
 import styles from "./feeds.module.css";
 import axios from 'axios';
 import ExpandableCard from "@leafygreen-ui/expandable-card";
-import { Label, Description, Overline, Link} from "@leafygreen-ui/typography";
+import { Subtitle, Label, Description, Overline, Link} from "@leafygreen-ui/typography";
 import { useRef, useState, useEffect } from 'react';
 import Button from "@leafygreen-ui/button";
+import Modal from "@leafygreen-ui/modal";
+import { Spinner } from "@leafygreen-ui/loading-indicator";
+import Code from '@leafygreen-ui/code';
 
 export default function Feed({f}){
-    const [lastCrawl, setLastCrawl] = useState(null)
+    const [testResult, setTestResult] = useState(null);
     const [feed, setFeed] = useState(f);
+    const [testLoading, setTestLoading] = useState(false);
+    const [open, setOpen] = useState(false);
     const intervalId = useRef();
 
 
@@ -53,25 +58,44 @@ export default function Feed({f}){
         clearCrawlHistory(id).then(response => setFeed(response.data)).catch(e => console.log(e));
     };
 
+    const test = (id) => {
+        setTestLoading(true)
+        setOpen(true);
+        fetchTestResult(id).then(response => {
+            setTestResult(response.data);
+            setTestLoading(false);
+        }).catch(e => console.log(e));
+    };
+
     return (
+        <div>
+        <Modal open={open} setOpen={setOpen}>
+            <Subtitle>Test RSS Feed {feed._id}</Subtitle>
+            {
+                testLoading? <Spinner description="Getting test results..."/>
+                :testResult? <Code language={'json'} copyable={false}>{JSON.stringify(testResult,null,2)}</Code>
+                :<></>
+            }
+        </Modal>
         <ExpandableCard
-            style={{marginTop:"10px"}}
             title={`${feed.config.attribution} - ${feed._id}`}
             description={`${feed.status? feed.status : 'not run'}`}
             darkMode={false}
         >
-            <div style={{ display: "grid", gridTemplateRows: "repeat(3, 1fr)", gap: "10px" }}>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "10px" }}>
+            <div>
+                <div style={{ display: "grid", gridTemplateColumns: "50px 100%", gap: "10px", alignItems:"center"}}>
+                    <Button onClick={() => test(feed._id)}>Test</Button>
                     <p>
                         <span style={{ fontWeight: "bold" }}>URL: </span><span><Link>{feed.config.url}</Link></span>
                     </p>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "10px" }}>
                     <p>
                         <span style={{ fontWeight: "bold" }}>CSS Selector: </span><span>{feed.config.content_html_selector}</span>
                     </p>
                     <p>
                         <span style={{ fontWeight: "bold" }}>Language: </span><span>{feed.config.lang}</span>
                     </p>
-                    <Button>Test</Button>
                 </div>
                 <div>
                     <div>
@@ -87,16 +111,16 @@ export default function Feed({f}){
                             :<div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "10px" }}>
                             
                             <p>
-                                <span style={{ fontWeight: "bold" }}>Crawled items: </span><span>{feed.crawl.crawled?.length}</span>
+                                <span style={{ fontWeight: "bold" }}>Crawled: </span><span>{feed.crawl.crawled?.length}</span>
                             </p>
                             <p>
-                                <span style={{ fontWeight: "bold" }}>Inserted items: </span><span>{feed.crawl.inserted?.length}</span>
+                                <span style={{ fontWeight: "bold" }}>Inserted: </span><span>{feed.crawl.inserted?.length}</span>
                             </p>
                             <p>
-                                <span style={{ fontWeight: "bold" }}>Skipped items: </span><span>{feed.crawl.skipped?.length}</span>
+                                <span style={{ fontWeight: "bold" }}>Skipped: </span><span>{feed.crawl.skipped?.length}</span>
                             </p>
                             <p>
-                                <span style={{ fontWeight: "bold" }}>Duplicates found: </span><span>{feed.crawl.duplicates?.length}</span>
+                                <span style={{ fontWeight: "bold" }}>Duplicates: </span><span>{feed.crawl.duplicates?.length}</span>
                             </p>
                             <p>
                                 <span style={{ fontWeight: "bold" }}>Errors: </span><span>{feed.crawl.errors?.length}</span>
@@ -112,11 +136,12 @@ export default function Feed({f}){
                     :feed.status == 'starting'? <Button variant="primaryOutline">Start</Button>
                     :feed.status == 'stopping'? <Button variant="dangerOutline">Stop</Button>
                     :<Button variant="primary" onClick={() => start(feed._id)}>Start</Button>}
-                    <Button variant="dangerOutline" onClick={() => clear(feed._id)}>Clear Crawl History</Button>
+                    <Button variant="dangerOutline" onClick={() => clear(feed._id)}>Clear History</Button>
                     <Button variant="danger">Delete Docs</Button>
                 </div>
             </div>
         </ExpandableCard>
+        </div>
     );
 };
 
@@ -176,6 +201,17 @@ async function stopCrawl(feedId) {
 async function clearCrawlHistory(feedId) {
     return new Promise((resolve) => {
         axios.get(`${process.env.NEXT_PUBLIC_FEEDS_URL}:${process.env.NEXT_PUBLIC_FEEDS_PORT}/feed/${feedId}/history/clear`)
+        .then(response => resolve(response))
+        .catch((error) => {
+            console.log(error)
+            resolve(error.response.data);
+        })
+    });
+}
+
+async function fetchTestResult(feedId) {
+    return new Promise((resolve) => {
+        axios.get(`${process.env.NEXT_PUBLIC_FEEDS_URL}:${process.env.NEXT_PUBLIC_FEEDS_PORT}/feed/${feedId}/test`)
         .then(response => resolve(response))
         .catch((error) => {
             console.log(error)
