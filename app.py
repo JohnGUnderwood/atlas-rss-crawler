@@ -1,14 +1,12 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS, cross_origin
 from bson.json_util import dumps
-from pymongo import ReturnDocument
 import json
 from feeds import feeds
 from crawler import Entry
 import feedparser
-from os import getcwd,mkdir,getenv
+from os import getenv
 import traceback
-from shutil import rmtree
 import pymongo
 
 def connect():
@@ -97,7 +95,7 @@ def getFeedCrawlHistory(feedId):
 def deleteFeedCrawlHistory(feedId):
     try:
         db['logs'].delete_many({'feed_id':feedId})
-        db['feeds'].update({'_id':feedId},{"$unset":{'crawl':1}})
+        db['feeds'].update_one({'_id':feedId},{"$unset":{'crawl':1}})
         r = db['feeds'].find_one({'_id':feedId})
         return returnPrettyJson(r),200
     except Exception as e:
@@ -108,22 +106,15 @@ def testFeed(feedId):
     try:
         f = db['feeds'].find_one({'_id':feedId},{'config':1})
         feed = feedparser.parse(f['config']['url'])
-        dir = '{}/{}'.format(getcwd(),'test')
-        try:
-            mkdir(dir)
-        except FileExistsError:
-            pass
         try:
             entry = Entry(
                 DATA=feed.entries[0],
-                DIR=dir,
                 SELECTOR=f['config']['content_html_selector'],
                 LANG=f['config']['lang'],
-                ATTRIBUTION=f['config']['attribution']).processEntry()
+                ATTRIBUTION=f['config']['attribution']
+            ).processEntry()
         except Exception as e:
-            return traceback.format_exc(),500
-        
-        rmtree(dir)
+            return {"error":str(traceback.format_exc())},500
         return returnPrettyJson(entry),200
     except Exception as e:
         return returnPrettyJson(e),500
@@ -136,13 +127,9 @@ def queueCrawl(feedId):
         if q:
             return returnPrettyJson({'msg':'Feed {} already in queue to start'.format(feedId)}),200
         
-        f = db['feeds'].find_one({'_id':feedId},{'status':1,"crawl":1,'config':1,'last_crawl_date':"$crawl.start"})
+        f = db['feeds'].find_one({'_id':feedId},{'status':1,"crawl":1,'config':1})
         if not 'status' in f or f['status'] == 'stopped' or f['status'] == 'finished':
             crawlConfig = f['config']
-
-            if 'last_crawl_date' in f:
-                crawlConfig.update({'last_crawl_date':f['last_crawl_date']})
-
             r = db['queue'].insert_one({'action':'start','feed_id':feedId,'config':crawlConfig})
             return returnPrettyJson({'status':'starting','queued_task':r.inserted_id}),200
         elif f['status'] == 'running':

@@ -1,13 +1,37 @@
 FROM node:20
 
-# Install Python.
-RUN apt-get update && apt-get install -y python3 python3-pip python3.11-venv
+# Install Python and libraries required for the headless browser.
+RUN apt-get update && apt-get install -y \
+python3 \
+python3-pip \
+python3.11-venv \
+libnss3 \
+libdbus-1-3 \
+libatk1.0-0 \
+libatk-bridge2.0-0 \
+libcups2 \
+libdrm2 \
+libatspi2.0-0 \
+libxcomposite1 \
+libxdamage1 \
+libxfixes3 \
+libxrandr2 \
+libgbm1 \
+libxkbcommon0 \
+libasound2 \
+sudo
+
+# Create a new user 'appuser'.
+RUN useradd -m appuser
 
 # Set the working directory.
 WORKDIR /usr/src/app
 
 # Copy the current directory contents into the container.
 COPY ./ ./
+
+# Change the ownership of the copied files to 'appuser'.
+RUN chown -R appuser:appuser /usr/src/app
 
 # Change to the 'frontend' directory.
 WORKDIR /usr/src/app/frontend
@@ -30,8 +54,14 @@ RUN apt-get install -y supervisor
 # Copy supervisord configuration file.
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
+# Change the ownership of the supervisord configuration file to 'appuser'.
+RUN chown appuser:appuser /etc/supervisor/conf.d/supervisord.conf
+
 # Expose port 3000 for the frontend and 3010 for the APIs.
 EXPOSE 3000 3010
+
+# Switch to 'appuser'.
+USER appuser
 
 # Run supervisord.
 CMD ["/usr/bin/supervisord"]

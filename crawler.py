@@ -1,23 +1,43 @@
-from os import getenv, getcwd, makedirs
-from shutil import rmtree
 import feedparser
 from datetime import datetime
 import pymongo
 from pymongo import ReturnDocument
-import requests
 from bs4 import BeautifulSoup
 from selenium import webdriver
-import re
 import signal
 import sys
+import traceback
 
 class DuplicateEntryException(Exception):
     def __init__(self, message):
         super().__init__(message)
 
+class ChromeDriver:
+    def __init__(self):
+        self.options = webdriver.ChromeOptions()
+        self.options.add_argument("headless")
+        self.options.add_argument('--ignore-certificate-errors')
+        self.options.add_argument('--disable-dev-shm-usage')
+        self.options.add_argument('--no-sandbox')
+        self.driver = webdriver.Chrome(options=self.options)
+    
+    def fetchPage(self,link):
+        try:
+            print("Fetching page from {}".format(link))
+            self.driver.get(link)
+            html = self.driver.page_source
+            print("Got page content.")
+            return html
+        except Exception:
+            print(traceback.format_exc())
+            raise Exception("Fetching page failed. {}".format(traceback.format_exc()))
+    
+    def quit(self):
+        self.driver.quit()
+        print("Quitting ChromeDriver")
+
 class Entry:
-    def __init__(self,DATA,DIR,SELECTOR,LANG,ATTRIBUTION):
-        self.DIR=DIR
+    def __init__(self,DATA,SELECTOR,LANG,ATTRIBUTION):
         self.DATA=DATA
         self.SELECTOR=SELECTOR
         self.LANG=LANG
@@ -26,27 +46,9 @@ class Entry:
     def get(self):
         return self.DATA
 
-    def getWebContent(self):
-        entry = self.DATA
+    def parseContent(self,html):
         selector = self.SELECTOR
-        dir = self.DIR
         try:
-            headers = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.96 Safari/537.36"}
-            r = requests.get(
-                    entry.link,
-                    headers=headers
-                ).text
-            file = open('{}/{}.html'.format(dir,re.sub('[^A-Za-z0-9_\-.]','',entry.id)),'wt')
-            file.write(r)
-            file.close()
-
-            options = webdriver.ChromeOptions()
-            options.add_argument("headless")
-            browser = webdriver.Chrome(options=options)
-            browser.get('file://{}/{}.html'.format(dir,re.sub('[^A-Za-z0-9_\-\.]','',entry.id)))
-            html = browser.page_source
-            browser.quit()
-
             soup = BeautifulSoup(html, "html.parser")
             tags = soup.select(selector)
 
@@ -61,9 +63,11 @@ class Entry:
     def processEntry(self):
         entry = self.DATA
         lang = self.LANG
-        attribtuon = self.ATTRIBUTION
+        attribution = self.ATTRIBUTION
+        driver = ChromeDriver()
         try:
-            content = self.getWebContent()
+            html = driver.fetchPage(entry.link)
+            content = self.parseContent(html)
             entry.update({'content':{lang:content}})
             entry.update({'_id':entry.id})
             if 'summary' in entry: entry.update({'summary':{lang:entry.summary}})
@@ -77,11 +81,13 @@ class Entry:
                     entry.update({'authors':entry.author})
             
             entry.update({'lang':lang})
-            entry.update({'attribution':attribtuon})
+            entry.update({'attribution':attribution})
             self.DATA = entry
             return self.DATA
         except Exception as e:
             raise e
+        finally:
+            driver.quit()
 
 class Crawler:
     def __init__(self,MDB_URL,MDB_DB,FEED_CONFIG,PID):
@@ -91,7 +97,6 @@ class Crawler:
         self.PID=PID
         self.CRAWL_ID=FEED_CONFIG['_id']
         self.MDB_CLIENT=self.connect()
-        self.DIR='{}/{}/{}'.format(getcwd(),'temp',FEED_CONFIG['_id'])
         signal.signal(signal.SIGTERM, self.signal_handler)
     
     def signal_handler(self,sig,frame):
@@ -103,9 +108,7 @@ class Crawler:
         )['crawl']
         crawl.update({'feed_id':self.FEED_CONFIG['_id']})
         self.MDB_CLIENT[self.MDB_DB]['logs'].insert_one(crawl)
-        self.MDB_CLIENT[self.MDB_DB]['logs'].insert_one(crawl)
         self.MDB_CLIENT.close()
-        rmtree(self.DIR)
         print('Caught the SystemExit exception while running crawl {}'.format(self.CRAWL_ID))
         sys.exit(0)
     
@@ -147,14 +150,17 @@ class Crawler:
         except Exception as e:
             raise e
         
-    def processItem(self,item,dir):
+    def processItem(self,item):
         try:
-            entry = Entry(item,dir,self.FEED_CONFIG['content_html_selector'],self.FEED_CONFIG['lang'],self.FEED_CONFIG['attribution']).processEntry()
+            entry = Entry(
+                DATA=item,
+                SELECTOR=self.FEED_CONFIG['content_html_selector'],
+                LANG=self.FEED_CONFIG['lang'],
+                ATTRIBUTION=self.FEED_CONFIG['attribution']
+                ).processEntry()
             try:
                 with self.MDB_CLIENT.start_session() as session:
                     session.with_transaction(lambda session: self.insertEntry(session,entry))
-            except DuplicateEntryException as e:
-                self.updateFeed({'$push':{'crawl.duplicates':entry['id']}})
             except Exception as e:
                 print("Crawler {} failed to insert entry for item {}".format(self.CRAWL_ID,entry['id']),e)
                 self.updateFeed({'$push':{'crawl.errors':{'entryId':entry['id'],'error':str(e)}}})
@@ -165,33 +171,20 @@ class Crawler:
     def start(self):
         config = self.FEED_CONFIG
         crawlId = self.CRAWL_ID
-        crawl = {'pid':self.PID,'crawled':[],'inserted':[],'duplicates':[],'errors':[],'skipped':[]}
+        crawl = {'pid':self.PID,'crawled':[],'inserted':[],'errors':[],'duplicates':[]}
         self.updateFeed({"$set":{'crawl':crawl,'status':'running'}})
-
-        date_format = '%a, %d %b %Y %H:%M:%S %Z'
-        dir  = self.DIR
-        try:
-            makedirs(dir,exist_ok=True)
-        except FileExistsError:
-            pass
 
         feed = feedparser.parse(config['url'])
         self.updateFeed({"$set":{'crawl.start':datetime.now()}})
 
-        if 'last_crawl_date' not in config:
-            for item in feed.entries:
-                self.updateFeed({"$push":{"crawl.crawled":item['id']}})
-                self.processItem(item,dir)
-        else:
-            for item in feed.entries:
-                self.updateFeed({"$push":{"crawl.crawled":item['id']}})
-                item_date = datetime.strptime(item.published,date_format)
-                if item_date > config['last_crawl_date']:
-                    self.processItem(item,dir)
-                else:
-                    self.updateFeed({'$push':{'crawl.skipped':item['id']}})
+        for item in feed.entries:
+            self.updateFeed({"$push":{"crawl.crawled":item['id']}})
+            if self.MDB_CLIENT[self.MDB_DB]['docs'].find_one({'_id':item['id']},{'_id':1}):
+                self.updateFeed({'$push':{'crawl.duplicates':item['id']}})
+            else:
+                self.processItem(item)
 
-        rmtree(dir)
         self.MDB_CLIENT.close()
         print('Stopping crawl {}'.format(crawlId))
+        self.updateFeed({"$set":{'crawl':crawl,'status':'finished'}})
         return

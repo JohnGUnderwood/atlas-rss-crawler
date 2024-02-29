@@ -62,10 +62,6 @@ def fetch_data(q):
         for item in data:
             print("Processing feed {}.".format(item['feed_id']))
             db['queue'].update_one({'_id':item['_id']},{"$set":{'action':'processed'}})
-            if item['action'] == 'start':
-                db['feeds'].update_one({'_id':item['feed_id']},{"$set":{'status':'running'}})
-            elif item['action'] == 'stop':
-                db['feeds'].update_one({'_id':item['feed_id']},{"$set":{'status':'stopped'}})
             q.put(item)
     else:
         print("Nothing in queue")

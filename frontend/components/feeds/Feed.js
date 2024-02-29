@@ -18,7 +18,7 @@ export default function Feed({f}){
 
 
     useEffect(() => {
-        if (feed.status && feed.status !== 'stopped' && feed.status !== 'stopping' && feed.status !== 'finished') {
+        if (feed.status && feed.status === 'starting' || feed.status === 'running') {
             console.log(feed.status);
             intervalId.current = setInterval(() => {
                 fetchFeed(feed._id).then(response => {
@@ -104,20 +104,17 @@ export default function Feed({f}){
                     
                         {
                             feed.crawl ?
-                            feed.crawl.skipped.length >= feed.crawl.crawled.length?
+                            feed.crawl.duplicates.length >= feed.crawl.crawled.length?
                             <p>
                                 <span>No new entries found.</span>
                             </p>
-                            :<div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "10px" }}>
+                            :<div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "10px" }}>
                             
                             <p>
                                 <span style={{ fontWeight: "bold" }}>Crawled: </span><span>{feed.crawl.crawled?.length}</span>
                             </p>
                             <p>
                                 <span style={{ fontWeight: "bold" }}>Inserted: </span><span>{feed.crawl.inserted?.length}</span>
-                            </p>
-                            <p>
-                                <span style={{ fontWeight: "bold" }}>Skipped: </span><span>{feed.crawl.skipped?.length}</span>
                             </p>
                             <p>
                                 <span style={{ fontWeight: "bold" }}>Duplicates: </span><span>{feed.crawl.duplicates?.length}</span>
