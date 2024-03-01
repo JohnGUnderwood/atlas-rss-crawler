@@ -4,32 +4,59 @@ import pymongo
 from pymongo import ReturnDocument
 from bs4 import BeautifulSoup
 from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
 import signal
 import sys
 import traceback
+from os import getenv
+from dotenv import load_dotenv
+
+load_dotenv()
+
+class MongoDBConnection:
+    def __init__(self):
+        self.url = getenv("MDBCONNSTR")
+        self.db_name = getenv("MDB_DB",default="news-search")
+    
+    def connect(self):
+        try:
+            self.client = pymongo.MongoClient(self.url)
+            self.client.admin.command('ping')
+            try:
+                self.db = self.client.get_database(self.db_name)
+                return self.db
+            except Exception as e:
+                raise Exception("Failed to connect to {}. {}".format(self.db_name,e))
+        except Exception as e:
+            raise Exception("Failed to connect to MongoDB. {}".format(self.db_name,e))
+
+    def get_session(self):
+        return self.client.start_session()
+
+    def close(self):
+        self.client.close()
 
 class DuplicateEntryException(Exception):
     def __init__(self, message):
         super().__init__(message)
 
-class ChromeDriver:
+class MyChromeDriver:
     def __init__(self):
         self.options = webdriver.ChromeOptions()
-        self.options.add_argument("headless")
+        self.options.binary_location = getenv('CHROME_PATH')
+        self.options.add_argument("--headless=new")
         self.options.add_argument('--ignore-certificate-errors')
         self.options.add_argument('--disable-dev-shm-usage')
         self.options.add_argument('--no-sandbox')
-        self.driver = webdriver.Chrome(options=self.options)
+        self.driver = webdriver.Chrome(service=Service(getenv('CHROMEDRIVER_PATH')),options=self.options)
     
     def fetchPage(self,link):
         try:
             print("Fetching page from {}".format(link))
             self.driver.get(link)
             html = self.driver.page_source
-            print("Got page content.")
             return html
         except Exception:
-            print(traceback.format_exc())
             raise Exception("Fetching page failed. {}".format(traceback.format_exc()))
     
     def quit(self):
@@ -37,11 +64,12 @@ class ChromeDriver:
         print("Quitting ChromeDriver")
 
 class Entry:
-    def __init__(self,DATA,SELECTOR,LANG,ATTRIBUTION):
+    def __init__(self,DATA,SELECTOR,LANG,ATTRIBUTION,DRIVER):
         self.DATA=DATA
         self.SELECTOR=SELECTOR
         self.LANG=LANG
         self.ATTRIBUTION=ATTRIBUTION
+        self.DRIVER=DRIVER
     
     def get(self):
         return self.DATA
@@ -64,7 +92,7 @@ class Entry:
         entry = self.DATA
         lang = self.LANG
         attribution = self.ATTRIBUTION
-        driver = ChromeDriver()
+        driver = self.DRIVER
         try:
             html = driver.fetchPage(entry.link)
             content = self.parseContent(html)
@@ -86,60 +114,42 @@ class Entry:
             return self.DATA
         except Exception as e:
             raise e
-        finally:
-            driver.quit()
 
 class Crawler:
-    def __init__(self,MDB_URL,MDB_DB,FEED_CONFIG,PID):
-        self.MDB_DB=MDB_DB
-        self.MDB_URL=MDB_URL
+    def __init__(self,FEED_CONFIG,PID):
         self.FEED_CONFIG=FEED_CONFIG
         self.PID=PID
         self.CRAWL_ID=FEED_CONFIG['_id']
-        self.MDB_CLIENT=self.connect()
+        self.CONN=MongoDBConnection()
+        self.MDB_DB=self.CONN.connect()
+        self.DRIVER = MyChromeDriver()
         signal.signal(signal.SIGTERM, self.signal_handler)
     
     def signal_handler(self,sig,frame):
         print('SIGTERM received, shutting down')
-        crawl = self.MDB_CLIENT[self.MDB_DB]['feeds'].find_one_and_update(
+        crawl = self.MDB_DB.feeds.find_one_and_update(
             {'_id':self.FEED_CONFIG['_id']},
             {"$set":{'crawl.end':datetime.now(),'status':'stopped'}},
             return_document=ReturnDocument.AFTER
         )['crawl']
         crawl.update({'feed_id':self.FEED_CONFIG['_id']})
-        self.MDB_CLIENT[self.MDB_DB]['logs'].insert_one(crawl)
-        self.MDB_CLIENT.close()
+        self.MDB_DB.logs.insert_one(crawl)
+        self.CONN.close()
+        self.DRIVER.quit()
         print('Caught the SystemExit exception while running crawl {}'.format(self.CRAWL_ID))
         sys.exit(0)
-    
-    def connect(self):
-        try:
-            client = pymongo.MongoClient(self.MDB_URL)
-            client.admin.command('ping')
-            try:
-                client.get_database(self.MDB_DB)
-                print("Crawler {} successfully connected to MongoDB {} database!".format(self.CRAWL_ID,self.MDB_DB))
-                return client
-            except Exception as e:
-                print(e)
-                print("Crawler {}  failed to connect to {}. Quitting.".format(self.CRAWL_ID,self.MDB_DB))
-                exit()
-        except Exception as e:
-            print(e)
-            print("Crawler {} failed to connect to MongoDB. Quitting.")
-            exit()
 
     def updateFeed(self,update):
         try:
-            self.MDB_CLIENT[self.MDB_DB]['feeds'].update_one({'_id':self.FEED_CONFIG['_id']},update)
+            self.MDB_DB.feeds.update_one({'_id':self.FEED_CONFIG['_id']},update)
             return
         except Exception as e:
             raise e
     
     def insertEntry(self,session,entry):
         try:
-            docs_collection = self.MDB_CLIENT[self.MDB_DB].docs
-            feeds_collection = self.MDB_CLIENT[self.MDB_DB].feeds
+            docs_collection = self.MDB_DB.docs
+            feeds_collection = self.MDB_DB.feeds
             docs_collection.insert_one(entry,session=session)
             feeds_collection.update_one({'_id':self.CRAWL_ID},{"$push":{"crawl.inserted":entry['id']}},session=session)
             print("Crawler {}: Entry update transaction successful".format(self.CRAWL_ID))
@@ -156,10 +166,11 @@ class Crawler:
                 DATA=item,
                 SELECTOR=self.FEED_CONFIG['content_html_selector'],
                 LANG=self.FEED_CONFIG['lang'],
-                ATTRIBUTION=self.FEED_CONFIG['attribution']
+                ATTRIBUTION=self.FEED_CONFIG['attribution'],
+                DRIVER=self.DRIVER
                 ).processEntry()
             try:
-                with self.MDB_CLIENT.start_session() as session:
+                with self.CONN.get_session() as session:
                     session.with_transaction(lambda session: self.insertEntry(session,entry))
             except Exception as e:
                 print("Crawler {} failed to insert entry for item {}".format(self.CRAWL_ID,entry['id']),e)
@@ -179,12 +190,13 @@ class Crawler:
 
         for item in feed.entries:
             self.updateFeed({"$push":{"crawl.crawled":item['id']}})
-            if self.MDB_CLIENT[self.MDB_DB]['docs'].find_one({'_id':item['id']},{'_id':1}):
+            if self.MDB_DB.docs.find_one({'_id':item['id']},{'_id':1}):
                 self.updateFeed({'$push':{'crawl.duplicates':item['id']}})
             else:
                 self.processItem(item)
 
-        self.MDB_CLIENT.close()
-        print('Stopping crawl {}'.format(crawlId))
         self.updateFeed({"$set":{'crawl':crawl,'status':'finished'}})
+        self.CONN.close()
+        self.DRIVER.quit()
+        print('Stopping crawl {}'.format(crawlId))
         return

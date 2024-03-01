@@ -2,43 +2,9 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS, cross_origin
 from bson.json_util import dumps
 import json
-from feeds import feeds
-from crawler import Entry
+from crawler import Entry,MyChromeDriver,MongoDBConnection
 import feedparser
-from os import getenv
 import traceback
-import pymongo
-
-def connect():
-    try:
-        client = pymongo.MongoClient(getenv("MDBCONNSTR"))
-        client.admin.command('ping')
-        try:
-            db = client.get_database(getenv("MDB_DB",default="news-search"))
-            print("Successfully connected to MongoDB {} database!".format(db.name))
-            return client, db
-        except Exception as e:
-            print(e)
-            print("Failed to connect to {}. Quitting.".format(db))
-            exit()
-    except Exception as e:
-        print(e)
-        print("Failed to connect to MongoDB. Quitting.")
-        exit()
-
-def setup():
-    installed = list(db["feeds"].find())
-    if len(installed) < 1:
-        db['feeds'].insert_many(feeds)
-        print("Installed all feeds: {}".format(", ".join([feed["_id"] for feed in feeds])))
-    else:
-        for feed in feeds:
-            print("Processing feed {}".format(feed['_id']))
-            if feed['_id'] in [item['_id'] for item in installed]:
-                print("\tFeed is already installed") 
-            else:
-                print("\tAdding config for feed.")
-                db['feeds'].insert_one(feed)
 
 def returnPrettyJson(data):
     try:
@@ -56,8 +22,9 @@ def returnPrettyJson(data):
 app = Flask(__name__)
 cors = CORS(app)
 app.config['CORS_HEADERS'] = 'Content-Type'
-client,db = connect()
-setup()
+connection = MongoDBConnection()
+db = connection.connect()
+driver = MyChromeDriver()
 
 @app.get("/feeds")
 def getFeeds():
@@ -107,11 +74,13 @@ def testFeed(feedId):
         f = db['feeds'].find_one({'_id':feedId},{'config':1})
         feed = feedparser.parse(f['config']['url'])
         try:
+            
             entry = Entry(
                 DATA=feed.entries[0],
                 SELECTOR=f['config']['content_html_selector'],
                 LANG=f['config']['lang'],
-                ATTRIBUTION=f['config']['attribution']
+                ATTRIBUTION=f['config']['attribution'],
+                DRIVER=driver
             ).processEntry()
         except Exception as e:
             return {"error":str(traceback.format_exc())},500
@@ -158,20 +127,4 @@ def queueStopCrawl(feedId):
             return returnPrettyJson({'msg':'Feed {} already stopped'.format(feedId),'status':'not run'}),200
     except Exception as e:
         return returnPrettyJson(e),500
-
-# @app.get("/queue")
-# def getQueue():
-#     try:
-#         crawls = list(db['queue'].find().sort('start',-1))
-#         return returnPrettyJson(crawls),200
-#     except Exception as e:
-#         return returnPrettyJson(e),500
-
-# @app.get("/queue/<string:taskId>")
-# def queuedTask(taskId):
-#     try:
-#         status = db['queue'].find_one({'_id':bson.ObjectId(taskId)})
-#         return returnPrettyJson(status),200
-#     except Exception as e:
-#         return returnPrettyJson(e),500
 
