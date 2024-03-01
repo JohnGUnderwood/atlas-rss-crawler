@@ -1,5 +1,4 @@
 
-import styles from "./feeds.module.css";
 import axios from 'axios';
 import ExpandableCard from "@leafygreen-ui/expandable-card";
 import { Subtitle, Label, Description, Overline, Link} from "@leafygreen-ui/typography";

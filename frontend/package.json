@@ -1,7 +1,7 @@
 {
   "private": true,
   "scripts": {
-    "dev": "next",
+    "dev": "next dev -p 3020",
     "build": "next build",
     "start": "next start"
   },
@@ -11,6 +11,7 @@
     "@leafygreen-ui/expandable-card": "^3.0.23",
     "@leafygreen-ui/loading-indicator": "^2.0.8",
     "@leafygreen-ui/modal": "^16.0.4",
+    "@leafygreen-ui/text-input": "^12.1.25",
     "@leafygreen-ui/typography": "^18.2.1",
     "axios": "^1.6.7",
     "dotenv": "^16.4.5",

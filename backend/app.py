@@ -37,8 +37,9 @@ def getFeeds():
 @app.post("/feeds")
 def postFeed():
     try:
-        feed = db['feeds'].insert_one(request.form)
-        return returnPrettyJson(feed), 200
+        db['feeds'].insert_one(request.json)
+        feedList = list(db['feeds'].find({}))
+        return returnPrettyJson(feedList), 200
     except Exception as e:
         return returnPrettyJson(e),500
 
