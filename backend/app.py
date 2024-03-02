@@ -30,7 +30,8 @@ driver = MyChromeDriver()
 def getFeeds():
     try:
         feedList = list(db['feeds'].find({}))
-        return returnPrettyJson(feedList), 200
+        feedDict = {feed['_id']: feed for feed in feedList}
+        return returnPrettyJson(feedDict), 200
     except Exception as e:
         return returnPrettyJson(e),500
 
@@ -39,7 +40,28 @@ def postFeed():
     try:
         db['feeds'].insert_one(request.json)
         feedList = list(db['feeds'].find({}))
-        return returnPrettyJson(feedList), 200
+        feedDict = {feed['_id']: feed for feed in feedList}
+        return returnPrettyJson(feedDict), 200
+    except Exception as e:
+        return returnPrettyJson(e),500
+    
+@app.get("/feeds/search")
+def searchFeeds():
+    query = request.args.get('q', default = "", type = str)
+    try:
+        feedList = list(db['feeds'].aggregate([
+            {"$search":{
+                "compound":{
+                    "should":[
+                        {"autocomplete":{"query":query,"path":"_id"}},
+                        {"autocomplete":{"query":query,"path":"config.attribution"}},
+                        {"autocomplete":{"query":query,"path":"config.url"}}
+                    ]
+                }
+            }}
+        ]))
+        feedDict = {feed['_id']: feed for feed in feedList}
+        return returnPrettyJson(feedDict), 200
     except Exception as e:
         return returnPrettyJson(e),500
 

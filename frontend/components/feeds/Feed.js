@@ -8,7 +8,7 @@ import Modal from "@leafygreen-ui/modal";
 import { Spinner } from "@leafygreen-ui/loading-indicator";
 import Code from '@leafygreen-ui/code';
 
-export default function Feed({f}){
+export default function Feed({f,feeds,setFeeds}){
     const [testResult, setTestResult] = useState(null);
     const [feed, setFeed] = useState(f);
     const [testLoading, setTestLoading] = useState(false);
@@ -35,6 +35,10 @@ export default function Feed({f}){
         } else {
             clearInterval(intervalId.current);
         }
+
+        // Update the feeds object in the parent component
+        setFeeds({...feeds, [feed._id]: feed});
+
         // Clean up on unmount
         return () => clearInterval(intervalId.current);
     }, [feed]);

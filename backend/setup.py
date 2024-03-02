@@ -21,14 +21,19 @@ feeds_search_index = {
                 "_id": {
                     "type": "autocomplete"
                 },
-                "attribution":{
-                    "type": "autocomplete"
-                },
-                'url':{
-                    "type": "autocomplete",
-                    "tokenization":"nGram",
-                    "minGram":3,
-                    "maxGram":20
+                "config":{
+                    "type": "document",
+                    "fields": {
+                        "attribution":{
+                            "type": "autocomplete"
+                        },
+                        'url':{
+                            "type": "autocomplete",
+                            "tokenization":"nGram",
+                            "minGrams":3,
+                            "maxGrams":20
+                        }
+                    }
                 }
             }
         }
