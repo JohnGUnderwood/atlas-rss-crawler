@@ -15,4 +15,7 @@ name="rsscrawler"
 echo 
 echo "Building container using tag ${abbrvhash} and buildx"
 echo
-docker build --platform linux/amd64 -t johnunderwood197/${name}:latest -t johnunderwood197/${name}:${abbrvhash} .
+docker buildx create --name rsscrawlerbuilder --use
+docker buildx build --platform linux/amd64,linux/arm64 -t johnunderwood197/${name}:latest -t johnunderwood197/${name}:${abbrvhash} --push .
+docker buildx stop rsscrawlerbuilder
+docker buildx rm rsscrawlerbuilder
