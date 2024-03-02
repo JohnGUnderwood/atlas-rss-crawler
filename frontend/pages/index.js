@@ -37,16 +37,16 @@ export default function Home(){
         <title>RSS Feeds</title>
         <link rel="icon" href="/favicon.ico" />
     </Head>
-    <div style={{display:"grid",gridTemplateColumns:"10% 80%",gap:"",alignItems:"start", paddingLeft:"10px"}}>
+    {/* <div style={{display:"grid",gridTemplateColumns:"160px 80%",gap:"",alignItems:"start", paddingLeft:"10px"}}> */}
       <div style={{width:"160px"}}>
         <H1 style={{textAlign:"center"}}><MongoDBLogoMark height={35}/>Atlas</H1>
         <H3 style={{textAlign:"center"}}>RSS Crawl</H3>
-        <Button style={{marginLeft:"35px"}} onClick={() => setOpen(true)}>Add Feed</Button>
+        <Button style={{marginLeft:"35px"}}  onClick={() => setOpen(true)}>Add Feed</Button>
       </div>
-      <div style={{paddingTop:"30px",paddingRight:"100px",justifyContent:"right", display:"grid",gridTemplateColumns:"90% 70px",gap:"10px",alignItems:"middle", paddingLeft:"16px"}}>
-        {/* <div><SearchInput onChange={handleQueryChange} aria-label="some label" style={{marginBottom:"20px"}}></SearchInput></div>
-        <div><Button onClick={()=>handleSearch()} variant="primary">Search</Button></div> */}
-        {/* <div>
+      {/* <div style={{paddingTop:"30px",paddingRight:"100px",justifyContent:"right", display:"grid",gridTemplateColumns:"90% 70px",gap:"10px",alignItems:"middle", paddingLeft:"16px"}}>
+        <div><SearchInput onChange={handleQueryChange} aria-label="some label" style={{marginBottom:"20px"}}></SearchInput></div>
+        <div><Button onClick={()=>handleSearch()} variant="primary">Search</Button></div>
+        <div>
           <Select 
             label="Languages"
             placeholder="All"
@@ -59,9 +59,9 @@ export default function Home(){
             <Option value="fr">French</Option>
             <Option value="es">Spanish</Option>
           </Select>
-        </div> */}
-      </div>
-    </div>
+        </div>
+      </div> */}
+    {/* </div> */}
 
     <Modal open={open} setOpen={setOpen}>
       <Subtitle>Add Feed</Subtitle>

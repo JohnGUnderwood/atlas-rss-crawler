@@ -10,7 +10,7 @@ feeds = [
         }
     },
     {
-        '_id':'economist_busines',
+        '_id':'economist_business',
         'config':{
             'lang':'en',
             'url':"https://www.economist.com/business/rss.xml",
