@@ -17,6 +17,7 @@ backend/chrome*/
 
 # Environment (contains sensitive data)
 .env
+**/.env
 backend/.env
 
 # Files not required for production
@@ -31,3 +32,4 @@ backend/setup.py
 backend/test.py
 backend/feeds.py
 backend/example.env
+supervisord.pid

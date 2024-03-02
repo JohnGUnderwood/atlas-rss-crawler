@@ -1,1 +1,5 @@
-. venv/bin/activate && supervisord -c supervisord.conf
+. venv/bin/activate && \
+cd frontend && \
+npm run build && \
+cd .. && \
+supervisord -c supervisord.conf

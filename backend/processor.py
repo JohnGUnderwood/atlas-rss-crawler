@@ -25,6 +25,7 @@ def startProcess(config,feed_id):
         )['crawl']
         crawl.update({'feed_id':config['_id']})
         db['logs'].insert_one(crawl)
+        connection.close()
         print("Finished. Crawl log: {}".format(feed_id))
     except Exception:
         print(traceback.format_exc())

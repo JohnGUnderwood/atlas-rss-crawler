@@ -25,20 +25,24 @@ class Crawler:
         self.MDB_DB=self.CONN.connect()
         self.DRIVER = MyChromeDriver()
         signal.signal(signal.SIGTERM, self.signal_handler)
-    
-    def signal_handler(self,sig,frame):
-        print('SIGTERM received, shutting down')
+
+    def exit(self,status):
+        print('Crawler for {} stopping with status {}'.format(self.CRAWL_ID,status))
         crawl = self.MDB_DB.feeds.find_one_and_update(
             {'_id':self.FEED_CONFIG['_id']},
-            {"$set":{'crawl.end':datetime.now(),'status':'stopped'}},
+            {"$set":{'crawl.end':datetime.now(),'status':status}},
             return_document=ReturnDocument.AFTER
         )['crawl']
         crawl.update({'feed_id':self.FEED_CONFIG['_id']})
         self.MDB_DB.logs.insert_one(crawl)
         self.CONN.close()
         self.DRIVER.quit()
-        print('Caught the SystemExit exception while running crawl {}'.format(self.CRAWL_ID))
         sys.exit(0)
+
+    def signal_handler(self,sig,frame):
+        print('SIGTERM received, shutting down')
+        self.exit('stopped')
+        
 
     def updateFeed(self,update):
         try:
@@ -83,11 +87,13 @@ class Crawler:
     
     def start(self):
         config = self.FEED_CONFIG
-        crawlId = self.CRAWL_ID
-        crawl = {'pid':self.PID,'crawled':[],'inserted':[],'errors':[],'duplicates':[]}
+        crawl = {'pid':self.PID,'start':datetime.now(),'crawled':[],'inserted':[],'errors':[],'duplicates':[]}
         self.updateFeed({"$set":{'crawl':crawl,'status':'running'}})
-        feed = MyFeedParser(config['url']).parseFeed()
-        self.updateFeed({"$set":{'crawl.start':datetime.now()}})
+        try:
+            feed = MyFeedParser(config['url']).parseFeed()
+        except Exception as e:
+            self.updateFeed({'$push':{'crawl.errors':{'error':str(e)}}})
+            self.exit('failed')
 
         for item in feed.entries:
             self.updateFeed({"$push":{"crawl.crawled":item['id']}})
@@ -98,10 +104,7 @@ class Crawler:
                 # backoff so we don't get banned by websites
                 sleep(1)
 
-        self.updateFeed({"$set":{'crawl':crawl,'status':'finished'}})
-        self.CONN.close()
-        self.DRIVER.quit()
-        print('Stopping crawl {}'.format(crawlId))
+        self.exit('finished')
         return
     
 class Entry:
