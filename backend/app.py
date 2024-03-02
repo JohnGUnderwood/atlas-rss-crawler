@@ -2,7 +2,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS, cross_origin
 from bson.json_util import dumps
 import json
-from crawler import Entry,MyChromeDriver,MongoDBConnection
+from crawler import Entry,MyChromeDriver,MongoDBConnection,MyFeedParser
 import feedparser
 import traceback
 
@@ -73,7 +73,8 @@ def deleteFeedCrawlHistory(feedId):
 def testFeed(feedId):
     try:
         f = db['feeds'].find_one({'_id':feedId},{'config':1})
-        feed = feedparser.parse(f['config']['url'])
+        feed = MyFeedParser(f['config']['url']).parseFeed()
+
         try:
             
             entry = Entry(
@@ -81,7 +82,8 @@ def testFeed(feedId):
                 SELECTOR=f['config']['content_html_selector'],
                 LANG=f['config']['lang'],
                 ATTRIBUTION=f['config']['attribution'],
-                DRIVER=driver
+                DRIVER=driver,
+                DATE_FORMAT=f['config']['date_format']
             ).processEntry()
         except Exception as e:
             return {"error":str(traceback.format_exc())},500
