@@ -143,9 +143,6 @@ class Entry:
             content = ''
             try:
                 html = driver.fetchPage(entry.link)
-                print("####### HTML #######")
-                print(html)
-                print("####### END HTML #######")
                 try:
                     content = self.parseContent(html)
                 except EntryParseException as e:
@@ -231,7 +228,7 @@ class MyChromeDriver:
         self.options.add_argument('--ignore-certificate-errors')
         self.options.add_argument('--disable-dev-shm-usage')
         self.options.add_argument('--no-sandbox')
-        
+
         # Try to avoid getting blocked
         self.options.add_argument("user-agent=Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.6331.0")
         self.options.add_argument("--disable-blink-features=AutomationControlled")

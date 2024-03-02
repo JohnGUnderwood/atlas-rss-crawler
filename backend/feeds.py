@@ -1,12 +1,32 @@
 feeds = [
     {
+        '_id':'economist_finance_economics',
+        'config':{
+            'lang':'en',
+            'url':"https://www.economist.com/finance-and-economics/rss.xml",
+            'content_html_selector':'div.article__body p',
+            'attribution':'The Economist',
+            'date_format':"%a, %d %b %Y %H:%M:%S %z"
+        }
+    },
+    {
+        '_id':'economist_busines',
+        'config':{
+            'lang':'en',
+            'url':"https://www.economist.com/business/rss.xml",
+            'content_html_selector':'div.article__body p',
+            'attribution':'The Economist',
+            'date_format':"%a, %d %b %Y %H:%M:%S %z"
+        }
+    },
+    {
         '_id':'marketwatch',
         'config':{
             'lang':'en',
-            'url':" https://feeds.content.dowjones.io/public/rss/mw_bulletins",
+            'url':"https://feeds.content.dowjones.io/public/rss/mw_bulletins",
             'content_html_selector':'div.article__body p',
             'attribution':'Marketwatch',
-            'date_format':"%a, %d %b %Y %H:%M:%S %z"
+            'date_format':"%a, %d %b %Y %H:%M:%S %Z"
         }
     },
     {
@@ -109,54 +129,54 @@ feeds = [
             'date_format':"%a, %d %b %Y %H:%M:%S %z"
         }
     },
-    {
-        '_id':'bbc_world',
-        'config':{
-            'lang':'en',
-            'url':"https://feeds.bbci.co.uk/news/world/rss.xml",
-            'content_html_selector':'article > div[data-component="text-block"]',
-            'attribution':'BBC',
-            'date_format':"%a, %d %b %Y %H:%M:%S %Z"
-        }
-    },
-    {
-        '_id':'bbc_mundo',
-        'config':{
-            'lang':'es',
-            'url':"https://feeds.bbci.co.uk/mundo/rss.xml",
-            'content_html_selector':'main > div > p',
-            'attribution':'BBC Mundo',
-            'date_format':"%a, %d %b %Y %H:%M:%S %Z"
-        }
-    },
-    {
-        '_id':'france_24_en',
-        'config':{
-            'lang':'en',
-            'url':"https://www.france24.com/en/rss",
-            'content_html_selector':"p.t-content__chapo,div.t-content__body > p",
-            'attribution':'France24',
-            'date_format':"%a, %d %b %Y %H:%M:%S %Z"
-        }
-    },
-    {
-        '_id':'france_24_fr',
-        'config':{
-            'lang':'fr',
-            'url':"https://www.france24.com/fr/rss",
-            'content_html_selector':"p.t-content__chapo,div.t-content__body > p",
-            'attribution':'France24',
-            'date_format':"%a, %d %b %Y %H:%M:%S %Z"
-        }
-    },
-    {
-        '_id':'france_24_es',
-        'config':{
-            'lang':'es',
-            'url':"https://www.france24.com/es/rss",
-            'content_html_selector':"p.t-content__chapo,div.t-content__body > p",
-            'attribution':'France24',
-            'date_format':"%a, %d %b %Y %H:%M:%S %Z"
-        }
-    }
+    # {
+    #     '_id':'bbc_world',
+    #     'config':{
+    #         'lang':'en',
+    #         'url':"https://feeds.bbci.co.uk/news/world/rss.xml",
+    #         'content_html_selector':'article > div[data-component="text-block"]',
+    #         'attribution':'BBC',
+    #         'date_format':"%a, %d %b %Y %H:%M:%S %Z"
+    #     }
+    # },
+    # {
+    #     '_id':'bbc_mundo',
+    #     'config':{
+    #         'lang':'es',
+    #         'url':"https://feeds.bbci.co.uk/mundo/rss.xml",
+    #         'content_html_selector':'main > div > p',
+    #         'attribution':'BBC Mundo',
+    #         'date_format':"%a, %d %b %Y %H:%M:%S %Z"
+    #     }
+    # },
+    # {
+    #     '_id':'france_24_en',
+    #     'config':{
+    #         'lang':'en',
+    #         'url':"https://www.france24.com/en/rss",
+    #         'content_html_selector':"p.t-content__chapo,div.t-content__body > p",
+    #         'attribution':'France24',
+    #         'date_format':"%a, %d %b %Y %H:%M:%S %Z"
+    #     }
+    # },
+    # {
+    #     '_id':'france_24_fr',
+    #     'config':{
+    #         'lang':'fr',
+    #         'url':"https://www.france24.com/fr/rss",
+    #         'content_html_selector':"p.t-content__chapo,div.t-content__body > p",
+    #         'attribution':'France24',
+    #         'date_format':"%a, %d %b %Y %H:%M:%S %Z"
+    #     }
+    # },
+    # {
+    #     '_id':'france_24_es',
+    #     'config':{
+    #         'lang':'es',
+    #         'url':"https://www.france24.com/es/rss",
+    #         'content_html_selector':"p.t-content__chapo,div.t-content__body > p",
+    #         'attribution':'France24',
+    #         'date_format':"%a, %d %b %Y %H:%M:%S %Z"
+    #     }
+    # }
 ]

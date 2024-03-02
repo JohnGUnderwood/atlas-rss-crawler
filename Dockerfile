@@ -54,4 +54,4 @@ EXPOSE 3000 3010
 USER appuser
 
 # Run supervisord on start.
-CMD ["/bin/bash", "-c", "source venv/bin/activate && supervisord"]
+# CMD ["/bin/bash", "-c", "source venv/bin/activate && supervisord"]
