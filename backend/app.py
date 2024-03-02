@@ -86,10 +86,10 @@ def testFeed(feedId):
                 DATE_FORMAT=f['config']['date_format']
             ).processEntry()
         except Exception as e:
-            return {"error":str(traceback.format_exc())},500
+            return {"error":str(traceback.format_exc())},200
         return returnPrettyJson(entry),200
     except Exception as e:
-        return returnPrettyJson(e),500
+        return returnPrettyJson(e),200
 
 @app.get("/feed/<string:feedId>/start")
 def queueCrawl(feedId):

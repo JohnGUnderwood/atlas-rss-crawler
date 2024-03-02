@@ -72,7 +72,7 @@ export default function Feed({f}){
             <Subtitle>Test RSS Feed {feed._id}</Subtitle>
             {
                 testLoading? <Spinner description="Getting test results..."/>
-                :testResult? <Code language={'json'} copyable={false}>{JSON.stringify(testResult,null,2)}</Code>
+                :testResult? <Code style={{whiteSpace:"break-spaces"}} language={'json'} copyable={false}>{JSON.stringify(testResult,null,2)}</Code>
                 :<></>
             }
         </Modal>
