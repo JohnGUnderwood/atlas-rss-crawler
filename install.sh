@@ -49,7 +49,7 @@ if [ "$TEST_RESULT" != "Passed" ]; then
     exit 1
     else
     echo "Test passed. Adding feed configs in feeds.py to MongoDB"
-    . venv/bin/activate && python3 backend/setup.py
+    . venv/bin/activate && python3 backend/setupCollections.py && python3 backend/installFeeds.py
 fi
 
 echo "Backend install complete. Installing frontend dependencies."
@@ -58,4 +58,4 @@ npm install
 npm run build
 cd ..
 echo "Frontend install complete."
-echo "You can now run the whole app using run.sh"
+echo "You can now run the whole app using runLocal.sh"

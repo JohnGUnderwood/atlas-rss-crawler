@@ -1,4 +1,3 @@
-from feeds import feeds
 from crawler import MongoDBConnection
 from pymongo.errors import CollectionInvalid,OperationFailure
 
@@ -174,7 +173,6 @@ docs_search_index = {
         }
         }
 }
-     
 
 for m in [{'c':"feeds",'m':feeds_search_index},{'c':"docs",'m':docs_search_index}]:
     try:
@@ -186,17 +184,4 @@ for m in [{'c':"feeds",'m':feeds_search_index},{'c':"docs",'m':docs_search_index
         else:
             print("Error creating index:", e)
             raise e
-
-installed = list(db["feeds"].find())
-if len(installed) < 1:
-    db['feeds'].insert_many(feeds)
-    print("Installed all feeds: {}".format(", ".join([feed["_id"] for feed in feeds])))
-else:
-    for feed in feeds:
-        print("Processing feed {}".format(feed['_id']))
-        if feed['_id'] in [item['_id'] for item in installed]:
-            print("\tFeed is already installed") 
-        else:
-            print("\tAdding config for feed.")
-            db['feeds'].insert_one(feed)
 connection.close()

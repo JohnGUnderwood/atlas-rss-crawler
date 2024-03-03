@@ -203,7 +203,7 @@ class MyFeedParser:
 class MongoDBConnection:
     def __init__(self):
         self.url = getenv("MDBCONNSTR")
-        self.db_name = getenv("MDB_DB",default="news-search")
+        self.db_name = getenv("MDB_DB",default="news-demo")
     
     def connect(self):
         try:

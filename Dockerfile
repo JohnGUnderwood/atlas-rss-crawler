@@ -1,5 +1,5 @@
 # Use an official Node.js runtime as a parent image
-FROM --platform=$BUILDPLATFORM node:20-slim AS node-build
+FROM --platform=$BUILDPLATFORM node:20-slim
 ARG TARGETPLATFORM
 ARG BUILDPLATFORM
 RUN echo "I am running on $BUILDPLATFORM, building for $TARGETPLATFORM" > /log
@@ -20,18 +20,8 @@ aptitude
 # Install chromium and chromedriver dependencies
 RUN aptitude install -y chromium-driver chromium
 
-# Set up a virtual environment and install Python dependencies.
-RUN python3 -m venv venv && . venv/bin/activate && pip3 install -r requirements.txt
-
-# Create a new user 'appuser'.
-RUN useradd -m appuser
-
-# Change the ownership of the copied files to 'appuser'.
-RUN chown -R appuser:appuser /usr/src/app
-
-# Install backend dependencies
-WORKDIR /usr/src/app/backend
-RUN npm install
+# Remove aptitude libraries to save space
+RUN apt-get purge -y aptitude && apt-get autoremove -y && apt-get clean
 
 # Check if .env file exists and create it if it doesn't
 RUN touch .env
@@ -39,13 +29,24 @@ RUN touch .env
 RUN echo "\nCHROME_PATH=\"/usr/bin/chromium\"" >> .env && \
     echo "CHROMEDRIVER_PATH=\"/usr/bin/chromedriver\"" >> .env;
 
+# Set up a virtual environment and install Python dependencies.
+RUN python3 -m venv venv && \
+. venv/bin/activate && \
+pip3 install -r requirements.txt
+
 # Install frontend dependencies
 WORKDIR /usr/src/app/frontend
 RUN npm install
 RUN npm run build
 
-# Go back to /app directory
+# Move back to the root directory
 WORKDIR /usr/src/app
+
+# Create a new user 'appuser'.
+RUN useradd -m appuser
+
+# Change the ownership of the copied files to 'appuser'.
+RUN chown -R appuser:appuser /usr/src/app
 
 # Expose port 3000 for the frontend and 3010 for the APIs.
 EXPOSE 3000 3010
@@ -53,5 +54,5 @@ EXPOSE 3000 3010
 # Switch to 'appuser'.
 USER appuser
 
-# Run supervisord on start.
-# CMD ["/bin/bash", "-c", "source venv/bin/activate && supervisord"]
+# Setup MongoDB Atlas collections and run supervisord on start.
+CMD ["/bin/bash", "-c", "source venv/bin/activate && python3 backend/setupCollections.py && supervisord"]
