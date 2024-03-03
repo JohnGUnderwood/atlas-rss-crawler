@@ -28,8 +28,10 @@ install.sh
 run.sh
 build.sh
 install.sh
-backend/setup.py
 backend/test.py
 backend/feeds.py
+backend/installFeeds.py
 backend/example.env
+backend/package.json
+backend/package-lock.json
 supervisord.pid
