@@ -91,7 +91,7 @@ class Crawler:
             print("Crawler {} failed to create Entry object for item {}".format(self.FEED_ID,item['id']),e)
             self.updateFeed({'$push':{'crawl.errors':{'entryId':item['id'],'error':str(e)}}})
     
-    def chunkEntryContent(entry):
+    def chunkEntryContent(self,entry):
         chunks = []
         try:
             if len(entry['content'][entry['lang']]) > 0:
