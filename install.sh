@@ -46,20 +46,24 @@ if ! command -v python3 &> /dev/null && ! command -v pip3 &> /dev/null; then
     echo "python3 and pip3 not found, please install them"
     exit 1
     else
-    echo "Creating a virtual environment and installing backend/requirements.txt"
-    python3 -m venv venv && . venv/bin/activate && pip3 install -r backend/requirements.txt
+    echo "Creating a virtual environment"
+    python3 -m venv venv && . venv/bin/activate
+    echo "Upgrading pip"
+    python3 -m pip install --upgrade pip 
+    echo "Installing backend/requirements.txt"
+    pip3 install -q -r backend/requirements.txt
 fi
 
 echo "|> Install finished. Running test.py <|"
-TEST_OUTPUT=$(. venv/bin/activate && python3 backend/test.py)
+TEST_OUTPUT=$(. venv/bin/activate && python3 backend/browserTest.py)
 TEST_RESULT=$(echo $TEST_OUTPUT | tail -n 1 | rev | cut -d ' ' -f 1 | rev)
 echo "$TEST_RESULT"
 if [ "$TEST_RESULT" != "Passed" ]; then
-    echo "Test failed"
+    echo "Browser Test failed"
     echo "$TEST_OUTPUT"
     exit 1
     else
-    echo "Test passed. Adding feed configs in feeds.py to MongoDB"
+    echo "Browser Test passed. Adding feed configs in feeds.py to MongoDB"
     . venv/bin/activate && python3 backend/setupCollections.py && python3 backend/installFeeds.py
 fi
 
@@ -67,7 +71,7 @@ echo "|> Backend install complete. <|"
 echo 
 echo "|> Installing embedding changestream. <|"
 echo "Installing embedder/requirements.txt"
-pip3 install -r embedder/requirements.txt
+pip3 install -q -r embedder/requirements.txt
 echo
 echo
 echo "|> Installing frontend dependencies. <|"

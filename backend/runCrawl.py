@@ -1,5 +1,5 @@
 from feeds import feeds
-from backend.main import Crawler
+from main import Crawler
 from concurrent.futures import ProcessPoolExecutor
 import traceback
 import os

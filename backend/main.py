@@ -10,11 +10,11 @@ import signal
 import sys
 import traceback
 import httpx
-from os import getenv
+from os import getenv,environ
 from dotenv import load_dotenv
 from time import sleep
 
-load_dotenv('../.env')
+load_dotenv()
 
 class Crawler:
     def __init__(self,FEED_CONFIG,PID):

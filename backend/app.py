@@ -2,8 +2,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS, cross_origin
 from bson.json_util import dumps
 import json
-from backend.main import Entry,MyChromeDriver,MongoDBConnection,MyFeedParser
-import feedparser
+from main import Entry,MyChromeDriver,MongoDBConnection,MyFeedParser
 import traceback
 
 def returnPrettyJson(data):

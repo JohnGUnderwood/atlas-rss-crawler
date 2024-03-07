@@ -1,18 +1,4 @@
-# This file is used by pip to install required python packages
-# Usage: pip install -r requirements.txt
-
-# Mongo driver
-pymongo
-
-# Environment file handling
-python-dotenv
-
-# REST Calls
-requests
-
-# OpenAI
-OpenAI
-
-# Mistral AI
-mistralai
+requests==2.31.0
+OpenAI==1.13.3
+mistralai==0.1.3
 

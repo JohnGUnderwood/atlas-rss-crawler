@@ -1,4 +1,4 @@
-from backend.main import MongoDBConnection
+from main import MongoDBConnection
 from pymongo.errors import CollectionInvalid,OperationFailure
 
 connection=MongoDBConnection()
@@ -282,7 +282,7 @@ for c in collections:
     else:
         print("Creating search index {} for {}".format(c['m']['name'],c['n']))
         try:
-            db.get_collection(c['c']).create_search_index(model=c['m'])
+            db.get_collection(c['n']).create_search_index(model=c['m'])
         except OperationFailure as e:
             if 'codeName' in e.details and e.details['codeName'] == 'IndexAlreadyExists':
                 print("\tIndex already exists")
@@ -290,7 +290,7 @@ for c in collections:
             else:
                 print("\tError creating index:", e)
                 raise e
-        if 'v' in m:
+        if 'v' in c:
             print("Creating vector index {} for {}".format(c['v']['name'],c['n']))
             try:
                 db.command("createSearchIndexes",c['n'],indexes=[c['v']])

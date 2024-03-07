@@ -1,4 +1,4 @@
-from backend.main import Crawler,MongoDBConnection
+from main import Crawler,MongoDBConnection
 from multiprocessing import Process, Queue
 import os
 import signal

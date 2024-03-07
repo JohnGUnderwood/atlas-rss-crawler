@@ -1,5 +1,5 @@
 from feeds import feeds
-from backend.main import MongoDBConnection
+from main import MongoDBConnection
 
 connection=MongoDBConnection()
 db=connection.connect()
