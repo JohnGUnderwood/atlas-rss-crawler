@@ -2,7 +2,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS, cross_origin
 from bson.json_util import dumps
 import json
-from crawler import Entry,MyChromeDriver,MongoDBConnection,MyFeedParser
+from backend.main import Entry,MyChromeDriver,MongoDBConnection,MyFeedParser
 import feedparser
 import traceback
 
@@ -98,14 +98,15 @@ def testFeed(feedId):
         feed = MyFeedParser(f['config']['url']).parseFeed()
 
         try:
-            
+            print(f['config'].get('custom_fields',None))
             entry = Entry(
                 DATA=feed.entries[0],
-                SELECTOR=f['config']['content_html_selector'],
+                SELECTORS=f['config']['content_html_selectors'],
                 LANG=f['config']['lang'],
                 ATTRIBUTION=f['config']['attribution'],
                 DRIVER=driver,
-                DATE_FORMAT=f['config']['date_format']
+                DATE_FORMAT=f['config']['date_format'],
+                CUSTOM_FIELDS=f['config'].get('custom_fields',None)
             ).processEntry()
         except Exception as e:
             return {"error":str(traceback.format_exc())},200

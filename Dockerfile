@@ -32,7 +32,7 @@ RUN echo "\nCHROME_PATH=\"/usr/bin/chromium\"" >> .env && \
 # Set up a virtual environment and install Python dependencies.
 RUN python3 -m venv venv && \
 . venv/bin/activate && \
-pip3 install -r requirements.txt
+pip3 install -r backend/requirements.txt && pip3 install -r embedder/requirements.txt
 
 # Install frontend dependencies
 WORKDIR /usr/src/app/frontend

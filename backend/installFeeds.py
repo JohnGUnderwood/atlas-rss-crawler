@@ -1,5 +1,5 @@
 from feeds import feeds
-from crawler import MongoDBConnection
+from backend.main import MongoDBConnection
 
 connection=MongoDBConnection()
 db=connection.connect()

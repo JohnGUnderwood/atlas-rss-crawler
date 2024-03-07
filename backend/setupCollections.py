@@ -1,15 +1,8 @@
-from crawler import MongoDBConnection
+from backend.main import MongoDBConnection
 from pymongo.errors import CollectionInvalid,OperationFailure
 
 connection=MongoDBConnection()
 db=connection.connect()
-
-for c in ["feeds","queue","logs","docs"]:
-    try:
-        db.create_collection(c,check_exists=True)
-    except CollectionInvalid as e:
-        print("The {} collection already exists:".format(c), e)
-        pass
 
 feeds_search_index = {
     "name":"default",
@@ -84,6 +77,17 @@ docs_search_index = {
                 }
             ],
             "tags": [
+                {
+                "type": "string"
+                },
+                {
+                "type": "token"
+                },
+                {
+                "type": "stringFacet"
+                }
+            ],
+            "nasdaq_tickers": [
                 {
                 "type": "string"
                 },
@@ -174,14 +178,127 @@ docs_search_index = {
         }
 }
 
-for m in [{'c':"feeds",'m':feeds_search_index},{'c':"docs",'m':docs_search_index}]:
+docs_chunks_search_index = {
+    "name":"searchIndex",
+    "definition":{
+        "mappings": {
+            "dynamic": False,
+            "fields": {
+                "published": [
+                    {
+                    "type": "date"
+                    },
+                    {
+                    "type": "dateFacet"
+                    }
+                ],
+                "authors": [
+                    {
+                    "type": "string"
+                    },
+                    {
+                    "type": "token"
+                    },
+                    {
+                    "type": "stringFacet"
+                    }
+                ],
+                "tags": [
+                    {
+                    "type": "string"
+                    },
+                    {
+                    "type": "token"
+                    },
+                    {
+                    "type": "stringFacet"
+                    }
+                ],
+                "nasdaq_tickers": [
+                    {
+                    "type": "string"
+                    },
+                    {
+                    "type": "token"
+                    },
+                    {
+                    "type": "stringFacet"
+                    }
+                ],
+                "content": {
+                    "type":"string"
+                }
+            
+            }
+        }
+        }
+}
+
+docs_chunks_vector_index = {
+    "name":"vectorIndex",
+    "type":"vectorSearch",
+    "definition":{
+        "fields":[
+            {
+                "type": "vector",
+                "path": "embedding",
+                "numDimensions": 1536,
+                "similarity": "cosine"
+            },
+            {
+                "type":"filter",
+                "path":"published",
+            },
+            {
+                "type":"filter",
+                "path":"type",
+            }
+            ,
+            {
+                "type":"filter",
+                "path":"nasdaq_tickers",
+            }
+        ]
+    }
+}
+
+collections = [
+    {'n':"queue",'m':None},
+    {'n':"logs",'m':None},
+    {'n':"feeds",'m':feeds_search_index},
+    {'n':"docs",'m':docs_search_index},
+    {'n':'docs_chunks','m':docs_chunks_search_index,'v':docs_chunks_vector_index}]
+
+for c in collections:
     try:
-        db.get_collection(m['c']).create_search_index(model=m['m'])
-    except OperationFailure as e:
-        if 'codeName' in e.details and e.details['codeName'] == 'IndexAlreadyExists':
-            print("Index already exists")
-            pass
-        else:
-            print("Error creating index:", e)
-            raise e
+        db.create_collection(c['n'],check_exists=True)
+    except CollectionInvalid as e:
+        print("The {} collection already exists:".format(c['n']), e)
+        pass
+
+for c in collections:
+    if c['m'] is None:
+        continue
+    else:
+        print("Creating search index {} for {}".format(c['m']['name'],c['n']))
+        try:
+            db.get_collection(c['c']).create_search_index(model=c['m'])
+        except OperationFailure as e:
+            if 'codeName' in e.details and e.details['codeName'] == 'IndexAlreadyExists':
+                print("\tIndex already exists")
+                pass
+            else:
+                print("\tError creating index:", e)
+                raise e
+        if 'v' in m:
+            print("Creating vector index {} for {}".format(c['v']['name'],c['n']))
+            try:
+                db.command("createSearchIndexes",c['n'],indexes=[c['v']])
+            except OperationFailure as e:
+                if 'codeName' in e.details and e.details['codeName'] == 'IndexAlreadyExists':
+                    print("\tIndex already exists")
+                    pass
+                else:
+                    print("\tError creating index:", e)
+                    raise e
 connection.close()

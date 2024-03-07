@@ -17,19 +17,22 @@ export default function Feed({f,feeds,setFeeds}){
 
 
     useEffect(() => {
-        if (feed.status && feed.status === 'starting' || feed.status === 'running') {
-            console.log(feed.status);
+        if (feed.status && feed.status === 'starting' ) {
             intervalId.current = setInterval(() => {
                 fetchFeed(feed._id).then(response => {
                     console.log('fetching feed');
                     setFeed(response.data);
+                    // Update the feeds object in the parent component
+                    setFeeds({...feeds, [feed._id]: feed});
                 });
             }, 3000);
-        } else if (feed.status === 'stopping') {
+        } else if (feed.status === 'stopping' || feed.status === 'running') {
             intervalId.current = setInterval(() => {
                 fetchFeed(feed._id).then(response => {
                     console.log('fetching feed');
                     setFeed(response.data);
+                    // Update the feeds object in the parent component
+                    setFeeds({...feeds, [feed._id]: feed});
                 });
             }, 5000);
         } else {
@@ -94,7 +97,7 @@ export default function Feed({f,feeds,setFeeds}){
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "10px" }}>
                     <p>
-                        <span style={{ fontWeight: "bold" }}>CSS Selector: </span><span>{feed.config.content_html_selector}</span>
+                        <span style={{ fontWeight: "bold" }}>CSS Selectors: </span><span>{JSON.stringify(feed.config.content_html_selectors)}</span>
                     </p>
                     <p>
                         <span style={{ fontWeight: "bold" }}>Language: </span><span>{feed.config.lang}</span>

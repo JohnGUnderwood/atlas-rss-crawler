@@ -8,7 +8,7 @@ Crawler to ingest RSS feeds and linked pages into MongoDB Atlas.
 - Database: MongoDB Atlas
 
 # How can I run it?
-First you will need to set your database connection string and optional database name (defaults to 'news-demo') in `backend/.env`. There is an example of how to name your variables in [`backend/example.env`](./backend/example.env).
+First you will need to set your database connection string and optional database name (defaults to 'news-demo') in `.env`. There is an example of how to name your variables in [`example.env`](./example.env). Also add API keys for the embedding service. If you don't want to embed your content for vector search then you
 
 After that you can either install everything to a local environment or use docker.
 
@@ -57,6 +57,8 @@ The application uses a few very cool packages to read an RSS feed, open the refe
 [Beautiful Soup](https://beautiful-soup-4.readthedocs.io/en/latest/#)
 
 [Selenium](https://www.selenium.dev/selenium/docs/api/py/index.html)
+
+[Pat's VectorStream Embedder](https://github.com/patw/VectorStream)
 
 ## Tell me more...
 The app is split into a backend and frontend. The backend is written in python and provides a processor which reads a queue of crawl tasks as well as flask API to handle requests.

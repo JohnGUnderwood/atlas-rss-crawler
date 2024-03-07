@@ -35,3 +35,6 @@ backend/example.env
 backend/package.json
 backend/package-lock.json
 supervisord.pid
+embedder/README.md
+embedder/sample.env
+embedder/notes/

@@ -1,4 +1,4 @@
-from crawler import MyChromeDriver,MongoDBConnection
+from backend.main import MyChromeDriver,MongoDBConnection
 
 try:
     driver = MyChromeDriver()
