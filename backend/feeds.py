@@ -84,7 +84,7 @@ feeds = [
         'config':{
             'lang':'fr',
             'url':"https://www.france24.com/fr/éco-tech/rss",
-            'content_html_selector':["p.t-content__chapo,div.t-content__body > p"],
+            'content_html_selectors':["p.t-content__chapo,div.t-content__body > p"],
             'attribution':'France24',
             'date_format':"%a, %d %b %Y %H:%M:%S %Z"
         }
