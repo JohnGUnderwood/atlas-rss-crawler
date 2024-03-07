@@ -10,6 +10,9 @@ WORKDIR /usr/src/app
 # Copy the current directory contents into the container.
 COPY ./ ./
 
+# Set the PYTHONPATH environment variable
+ENV PYTHONPATH "${PYTHONPATH}:/app/backend"
+
 # Install Python and aptitude package manager which we need to install chromium
 RUN apt-get update && apt-get install -y \
 python3 \
@@ -32,7 +35,7 @@ RUN echo "\nCHROME_PATH=\"/usr/bin/chromium\"" >> .env && \
 # Set up a virtual environment and install Python dependencies.
 RUN python3 -m venv venv && \
 . venv/bin/activate && \
-pip3 install -q -r backend/requirements.txt && pip3 install -q -r embedder/requirements.txt
+pip3 install -q -r backend/requirements.txt
 
 # Install frontend dependencies
 WORKDIR /usr/src/app/frontend

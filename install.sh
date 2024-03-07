@@ -20,9 +20,10 @@ fi
 
 echo "|> Installing Backend. <|"
 source .env
+echo "Adding project backend to PYTHONPATH"
+export PYTHONPATH="${PYTHONPATH}:$(pwd)/backend"
+
 cd backend
-echo "Adding project to PYTHONPATH"
-export PYTHONPATH="${PYTHONPATH}:$(pwd)"
 if ! command -v npx &> /dev/null \
     && ! npm list -g --depth=0 @puppeteer/browsers &> /dev/null \
     && ! npm list --depth=0 @puppeteer/browsers &> /dev/null;
