@@ -20,8 +20,6 @@ fi
 
 echo "|> Installing Backend. <|"
 source .env
-echo "Adding project backend to PYTHONPATH"
-export PYTHONPATH="${PYTHONPATH}:$(pwd)/backend"
 
 cd backend
 if ! command -v npx &> /dev/null \
@@ -58,6 +56,8 @@ if ! command -v python3 &> /dev/null && ! command -v pip3 &> /dev/null; then
     echo "Installing backend/requirements.txt"
     pip3 install -q -r backend/requirements.txt
 fi
+echo "Adding backend to PYTHONPATH in venv/bin/activate"
+echo "export PYTHONPATH=\"${PYTHONPATH}:$(pwd)/backend\"" >> venv/bin/activate
 
 echo "|> Install finished. Running backend/browserTest.py <|"
 TEST_OUTPUT=$(. venv/bin/activate && python3 backend/browserTest.py)
