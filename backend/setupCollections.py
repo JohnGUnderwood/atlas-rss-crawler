@@ -1,4 +1,4 @@
-from main import MongoDBConnection
+from packages import MongoDBConnection
 from pymongo.errors import CollectionInvalid,OperationFailure
 
 connection=MongoDBConnection()

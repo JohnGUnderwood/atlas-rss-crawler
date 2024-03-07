@@ -1,5 +1,5 @@
 import os
-from connection import MongoDBConnection
+from packages import MongoDBConnection
 
 # Nice way to load environment variables for deployments
 from dotenv import load_dotenv
@@ -117,8 +117,8 @@ def handle_changes(change):
     operation_type = change['operationType']
 
     # Bail out if the detected update is the embedding we just did!
-    if operation_type == "update" and 'embedding' in change['updateDescription']['updatedFields']:
-        return
+    # if operation_type == "update" and 'embedding' in change['updateDescription']['updatedFields']:
+    #     return
 
     # Anytime we create, update or replace documents, the embedding needs to be updated
     if operation_type == "replace" or operation_type == "update" or operation_type == "insert":
