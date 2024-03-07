@@ -23,13 +23,12 @@ def fetch_data(q):
 
 if __name__ == '__main__':
     print("Starting {} crawlers".format(len(feeds)))
-    # q = Queue()
 
-    # fetch_data(q)
+    num_cpus = os.cpu_count()
+    print("Number of CPUs: ",num_cpus)
+    print("Limiting concurrent crawlers to 2x the number of CPUs: ",num_cpus*2)
 
-    with ProcessPoolExecutor() as executor:
-        # while True:
-        #     if not q.empty():
+    with ProcessPoolExecutor(max_workers=num_cpus*2) as executor:
         for item in feeds:
             print("Found feed {}".format(item['_id']))
             executor.submit(startCrawl, item)

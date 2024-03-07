@@ -1,5 +1,5 @@
 import os
-from ..backend.main import MongoDBConnection
+from connection import MongoDBConnection
 
 # Nice way to load environment variables for deployments
 from dotenv import load_dotenv
@@ -91,7 +91,12 @@ def insert_chunks(session,parent,chunks):
 # Function to populate all the initial embeddings by detecting any fields with missing embeddings
 def initial_sync():
     # We only care about documents with missing keys
-    query = {'embedded': False} 
+    query = {
+        "$or": [
+            {"embedded": False},
+            {"embedded": {"$exists": False}}
+        ]
+    }
     results = collection.find(query)
 
     # Every document gets a new embedding
