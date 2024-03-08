@@ -25,12 +25,12 @@ Dockerfile
 README.md
 screenshots
 install.sh
-run.sh
-build.sh
+runLocal.sh
+runDocker.sh
+buildAndPush.sh
+buildRunDockerLocal.sh
 install.sh
 backend/test.py
-backend/feeds.py
-backend/installFeeds.py
 backend/example.env
 backend/package.json
 backend/package-lock.json

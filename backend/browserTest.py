@@ -1,4 +1,4 @@
-from main import MyChromeDriver,MongoDBConnection
+from packages import MyChromeDriver,MongoDBConnection
 
 try:
     driver = MyChromeDriver()

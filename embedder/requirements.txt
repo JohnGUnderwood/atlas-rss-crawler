@@ -1,4 +1,0 @@
-requests==2.31.0
-OpenAI==1.13.3
-mistralai==0.1.3
-
