@@ -21,8 +21,7 @@ elif provider == "mistral":
 # Set up your MongoDB connection and specify collection and inputs/outputs
 connection=MongoDBConnection()
 db=connection.connect()
-collection = db.docs
-chunks_collection = db.docs_chunks
+collection = db.docs_chunks
 
 # Initialize the change stream
 change_stream = collection.watch([], full_document='updateLookup')
@@ -53,61 +52,16 @@ def get_embedding(text):
     elif provider == "mistral":
         return get_embedding_Mistral(text)
 
-# Create chunks from summary and array of paragraphs
-def chunk_and_embed_content(entry):
-    chunks = []
-    if 'summary' in entry:
-        content = "# {title}\n## Summary\n{summary}".format(title=entry['title'][entry['lang']],summary=entry['summary'][entry['lang']])
-        chunks.append({
-            'parent_id':entry['id'],
-            'type':'summary',
-            'content':content,
-            'embedding':get_embedding(content)
-        })
-
-    if len(entry['content'][entry['lang']]) > 0:
-        for i,paragraph in enumerate(entry['content'][entry['lang']]):
-            content = "# {title}\n## Paragraph {number}\n{paragraph}".format(title=entry['title'][entry['lang']],number=i+1,paragraph=paragraph)
-            chunks.append({
-                'parent_id':entry['id'],
-                'type':'paragraph',
-                'content':content,
-                'embedding':get_embedding(content),
-            })
-            
-    for i,chunk in enumerate(chunks):
-        chunk.update({'chunk':i})
-        if 'tags' in entry:
-            chunk.update({'tags':entry['tags']})
-        if 'published' in entry:
-            chunk.update({'published':entry['published']})
-    
-    return chunks
-
-def insert_chunks(session,parent,chunks):
-    chunks_collection.insert_many(chunks,session=session)
-    collection.update_one({'_id': parent["_id"]},{"$set": {'embedded': True}},session=session)
-
 # Function to populate all the initial embeddings by detecting any fields with missing embeddings
 def initial_sync():
     # We only care about documents with missing keys
-    query = {
-        "$or": [
-            {"embedded": False},
-            {"embedded": {"$exists": False}}
-        ]
-    }
+    query = {"embedding": {"$exists": False}}
     results = collection.find(query)
 
     # Every document gets a new embedding
     total_records = 0
     for result in results:
-        total_records = total_records + 1
-        chunks = chunk_and_embed_content(result)
-
-        # Store the vector embeddings back into collection
-        with connection.get_session() as session:
-            session.with_transaction(lambda session: insert_chunks(session,result,chunks))
+        collection.update_one({"_id":result["_id"]}, {"$set": {"embedding":get_embedding(result['content'])}})
 
     return total_records
 
@@ -117,19 +71,15 @@ def handle_changes(change):
     operation_type = change['operationType']
 
     # Bail out if the detected update is the embedding we just did!
-    # if operation_type == "update" and 'embedding' in change['updateDescription']['updatedFields']:
-    #     return
+    if operation_type == "update" and 'embedding' in change['updateDescription']['updatedFields']:
+        return
 
     # Anytime we create, update or replace documents, the embedding needs to be updated
     if operation_type == "replace" or operation_type == "update" or operation_type == "insert":
         # Get the _id for update later and our input field to vectorize
         entry = change['fullDocument']
-        chunks = chunk_and_embed_content(entry)
-        # Store the vector embeddings back into collection
-        with connection.get_session() as session:
-            session.with_transaction(lambda session: insert_chunks(session,entry,chunks))
+        collection.update_one({"_id":entry["_id"]}, {"$set": {"embedding":get_embedding(entry['content'])}})
             
-
 # Perform initial sync
 print(f"Initial sync for {db.name} db and {collection.name} collection. Watching for changes to 'content' and writing to 'embedding'...")
 total_records = initial_sync()

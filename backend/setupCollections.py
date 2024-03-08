@@ -252,6 +252,10 @@ docs_chunks_vector_index = {
             {
                 "type":"filter",
                 "path":"type",
+            },
+            {
+                "type":"filter",
+                "path":"lang",
             }
             ,
             {

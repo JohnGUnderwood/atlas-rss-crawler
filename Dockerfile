@@ -11,7 +11,7 @@ WORKDIR /usr/src/app
 COPY ./ ./
 
 # Set the PYTHONPATH environment variable
-ENV PYTHONPATH "${PYTHONPATH}:/app/backend"
+ENV PYTHONPATH "${PYTHONPATH}:/usr/src/app/backend"
 
 # Install Python and aptitude package manager which we need to install chromium
 RUN apt-get update && apt-get install -y \
