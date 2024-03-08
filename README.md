@@ -52,7 +52,7 @@ This creates multi-arch images (linux/amd64 and linux/arm64) and pushes them to 
 # Further Questions..
 
 ## Okay. How does it work?
-The application uses a few very cool packages to read an RSS feed, open the reference web pages, and parse the html. I am very grateful to (amongst a host of other amazing projects you can find listed [here](./requirements.txt), [here](./backend/package.json) and [here](./frontend/package.json)):
+The application uses a few very cool packages to read an RSS feed, open the reference web pages, and parse the html. I am very grateful to (amongst a host of other amazing projects you can find listed [here](./backend/requirements.txt), [here](./backend/package.json) and [here](./frontend/package.json)):
 
 [feedparser](https://feedparser.readthedocs.io/en/latest/#)
 
