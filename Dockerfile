@@ -58,4 +58,4 @@ EXPOSE 3000 3010
 USER appuser
 
 # Setup MongoDB Atlas collections and run supervisord on start.
-CMD ["/bin/bash", "-c", "source venv/bin/activate && python3 backend/setupCollections.py && supervisord"]
+CMD ["/bin/bash", "-c", "source venv/bin/activate && python3 backend/setupCollections.py && python3 backend/installFeeds.py && supervisord"]
