@@ -105,6 +105,7 @@ class Crawler:
                         'lang':entry['lang'],
                         'feed_id':self.FEED_ID,
                         'attribution':entry['attribution'],
+                        'link':entry['link'],
                         'title':entry['title'][entry['lang']],
                     }
                     if 'tags' in entry:
