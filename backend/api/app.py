@@ -96,6 +96,14 @@ def getFeed(feedId):
         return returnPrettyJson(config), 200
     except Exception as e:
         return returnPrettyJson(e),500
+
+@app.delete("/feed/<string:feedId>")
+def deleteFeed(feedId):
+    try:
+        config = db['feeds'].find_one_and_delete({'_id':feedId})
+        return returnPrettyJson(config), 200
+    except Exception as e:
+        return returnPrettyJson(e),500
     
 @app.get("/feed/<string:feedId>/history")
 def getFeedCrawlHistory(feedId):
