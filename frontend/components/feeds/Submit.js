@@ -1,13 +1,14 @@
 
-import styles from "./submit.module.css";
 import axios from 'axios';
 import { useEffect, useState } from 'react';
-import { Subtitle, Label, Description, Overline, Link} from "@leafygreen-ui/typography";
-import TextInput from '@leafygreen-ui/text-input';
 import Button from "@leafygreen-ui/button";
-import Icon from "@leafygreen-ui/icon";
+import Form from "./Form";
+import { Spinner } from '@leafygreen-ui/loading-indicator';
+import Code from '@leafygreen-ui/code';
 
-export default function Submit({setFeeds}){
+export default function Submit({setFeeds,setOpen}){
+    const [testResult, setTestResult] = useState(null);
+    const [loading, setLoading] = useState(false);
     const [formData, setFormData] = useState(
         {
             _id:'',
@@ -15,58 +16,41 @@ export default function Submit({setFeeds}){
             url: '',
             attribution: '',
             content_html_selectors:[''],
-            date_format: ''
+            date_format: '%a, %d %b %Y %H:%M:%S %Z'
         });
 
-    const handleInputChange = (attribute, event, index=null) => {
-        
-        if(attribute === 'content_html_selectors'){
-            setFormData({
-                ...formData, 
-                content_html_selectors: formData.content_html_selectors.map(
-                    (value, i) => i === index ? event.target.value : value)
-            });
-        }else {
-            setFormData({
-                ...formData,
-                [attribute]: event.target.value
-            });
-        }
-            
-    };
-
-    const handleAddClick = () => {
-        setFormData({
-            ...formData, 
-            content_html_selectors: formData.content_html_selectors.concat([''])
-        });
-    };
-
-    const handleRemoveClick = () => {
-        setFormData({
-            ...formData, 
-            content_html_selectors: formData.content_html_selectors.slice(0, formData.content_html_selectors.length - 1)
-        });
-    };
-
-    const handleSubmit = (event) => {
-        console.log(event.target);
-        event.preventDefault();
-        const formData = new FormData(event.target);
+    const handleSubmit = () => {
         const newFeed = {
-            '_id': formData.get('id'),
+            '_id': formData._id,
             'config': {
-                'lang': formData.get('lang'),
-                'url': formData.get('url'),
-                'content_html_selector': formData.get('content_html_selector'),
-                'attribution': formData.get('attribution')
+                'lang': formData.lang,
+                'url': formData.url,
+                'content_html_selectors': formData.content_html_selectors,
+                'attribution': formData.attribution,
+                'date_format': formData.date_format,
             }
         };
+        setLoading(true);
         // Submit the new feed data
-        submitFeed(newFeed).then(response => setFeeds(response.data))
+        submitFeed(newFeed).then(response => {
+            setLoading(false);
+            setOpen(false);
+            setFeeds(response.data);
+        })
         .catch(e => console.log(e));
-        
     }
+
+    const testFeed = () => {
+        // Remove blank content_html_selectors
+        const newFormData = {...formData};
+        newFormData.content_html_selectors = newFormData.content_html_selectors.filter(selector => selector !== '');
+        setFormData(newFormData);
+        setLoading(true)
+        fetchTestResult(newFormData).then(response => {
+            setTestResult(response.data);
+            setLoading(false);
+        }).catch(e => console.log(e));
+    };
 
     useEffect(() => {
         console.log(formData);
@@ -74,74 +58,45 @@ export default function Submit({setFeeds}){
 
     return (
         <div>
-            <div className={styles.formRow}>
-                <Label htmlFor="_id">ID:</Label>
-                <TextInput
-                    className={styles.formInput}
-                    type="text" id="_id" name="_id" required
-                    onChange={event => handleInputChange('_id',event)}/>
-                <div className={styles.spacer}></div>
-            </div>
-            <div className={styles.formRow}>
-                <Label htmlFor="lang">Language:</Label>
-                <TextInput
-                    className={styles.formInput}
-                    type="text" id="lang" name="lang" required
-                    onChange={event => handleInputChange('lang',event)}/>
-                <div className={styles.spacer}></div>
-            </div>
-            <div className={styles.formRow}>
-                <Label htmlFor="url">URL:</Label>
-                <TextInput
-                    className={styles.formInput}
-                    type="text" id="url" name="url" required
-                    onChange={event => handleInputChange('url',event)}/>
-                <div className={styles.spacer}></div>
-            </div>
-            <div className={styles.formRow}>
-                <Label htmlFor="attribution">Attribution:</Label>
-                <TextInput
-                    className={styles.formInput}
-                    type="text" id="attribution" name="attribution" required
-                    onChange={event => handleInputChange('attribution',event)}/>
-                <div className={styles.spacer}></div>
-            </div>
-            {formData.content_html_selectors.map((selector, index) => (
-                <div className={styles.formRow} key={index}>
-                    <Label htmlFor={`content_html_selector_${index}`}>Content HTML Selector:</Label>
-                    <TextInput
-                        className={styles.formInput}
-                        type="text"
-                        id={`content_html_selector_${index}`}
-                        name={`content_html_selector_${index}`}
-                        value={selector}
-                        onChange={event => handleInputChange('content_html_selectors',event,index)}
-                        required
-                    />
-                    {index === formData.content_html_selectors.length - 1 ? (
-                        <div className={styles.iconContainer}>
-                            <Icon onClick={handleAddClick} glyph={"PlusWithCircle"} fill="#C1C7C6" />
-                            {formData.content_html_selectors.length > 1 ? (
-                                <Icon onClick={handleRemoveClick} glyph={"XWithCircle"} fill="#C1C7C6" />
-                            ):<div style={{width:"16px"}}></div>}
-                        </div>
-                    ):<div className={styles.spacer}></div>}
-                </div>
-            ))}
-            {/* <button type="button" onClick={handleAddClick}>+</button> */}
-            
-            
-            <Button onClick={handleSubmit}>Submit</Button>
+            {loading?
+                <Spinner variant="large" description="Loading…"/>
+            : testResult? 
+                <>
+                    <Code style={{whiteSpace:"break-spaces"}} language={'json'} copyable={false}>{JSON.stringify(testResult,null,2)}</Code>
+                    <div style={{marginTop:"10px", display:"flex", gap:'10px'}}>
+                        <Button variant="primary" onClick={handleSubmit}>Submit Feed</Button>
+                        <Button variant="dangerOutline" onClick={() => setTestResult(null)}>Go Back</Button>
+                    </div>
+                </>
+            :   <>
+                    <Form formData={formData} setFormData={setFormData}></Form>
+                    <Button onClick={testFeed}>Test Feed</Button>
+                </>
+            }
         </div>
     );
 }
 
+async function fetchTestResult(feed) {
+    const headers = {
+        'Content-Type': 'application/json'
+    }
+    return new Promise((resolve) => {
+        axios.post(`${process.env.NEXT_PUBLIC_FEEDS_URL}:${process.env.NEXT_PUBLIC_FEEDS_PORT}/test`,
+            feed,
+            {headers: headers})
+        .then(response => resolve(response))
+        .catch((error) => {
+            console.log(error)
+            resolve(error.response.data);
+        })
+    });
+}
 
 async function submitFeed(feed) {
     const headers = {
         'Content-Type': 'application/json'
     }
-    console.log(feed);
     return new Promise((resolve) => {
         axios.post(`${process.env.NEXT_PUBLIC_FEEDS_URL}:${process.env.NEXT_PUBLIC_FEEDS_PORT}/feeds`,
             feed,
