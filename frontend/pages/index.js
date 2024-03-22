@@ -54,12 +54,12 @@ export default function Home(){
         <link rel="icon" href="/favicon.ico" />
     </Head>
     <SearchBanner appName="RSS Crawler" query={query} handleQueryChange={handleQueryChange} handleSearch={handleSearch}/>
-    <Button onClick={()=>setOpen(true)}>Add Feed</Button>
     <Modal open={open} setOpen={setOpen}>
       <Subtitle>Add Feed</Subtitle>
       <Submit setFeeds={setFeeds} setOpen={setOpen}/>
     </Modal>
-    <div>
+    <div style={{paddingTop:"50px"}}>
+      <Button style={{marginLeft:"30px"}} onClick={()=>setOpen(true)}>Add Feed</Button>
       <Feeds feeds={feeds} setFeeds={setFeeds}/>
     </div>
     </>
