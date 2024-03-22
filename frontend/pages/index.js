@@ -6,15 +6,12 @@ import Modal from "@leafygreen-ui/modal";
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import SearchBanner from "../components/searchBanner/SearchBanner";
+import Button from "@leafygreen-ui/button";
 
 export default function Home(){
   const [open, setOpen] = useState(false);
   const [feeds,setFeeds] = useState(null)
-  const [query, setQuery] = useState(null);
-
-  useEffect(()=>{
-      fetchFeeds();
-  },[])
+  const [query, setQuery] = useState('');
 
   const handleSearch = () => {
     if(query && query != ""){
@@ -24,9 +21,9 @@ export default function Home(){
     }else{
         fetchFeeds();
     }
-};
+  };
 
-const handleQueryChange = (event) => {
+  const handleQueryChange = (event) => {
     setFeeds(null);
     setQuery(event.target.value);
     if(event.target.value && event.target.value != ""){
@@ -36,7 +33,7 @@ const handleQueryChange = (event) => {
     }else{
         fetchFeeds();
     }
-};
+  };
 
   const fetchFeeds = async () => {
     console.log("fetching feeds")
@@ -48,13 +45,16 @@ const handleQueryChange = (event) => {
     }
   };
 
+  useEffect(() => {fetchFeeds()}, []);
+
   return (
     <>
     <Head>
-        <title>RSS Feeds</title>
+        <title>RSS Crawler</title>
         <link rel="icon" href="/favicon.ico" />
     </Head>
-    <SearchBanner appName="RSS Crawl" query={query} handleQueryChange={handleQueryChange} handleSearch={handleSearch}/>
+    <SearchBanner appName="RSS Crawler" query={query} handleQueryChange={handleQueryChange} handleSearch={handleSearch}/>
+    <Button onClick={()=>setOpen(true)}>Add Feed</Button>
     <Modal open={open} setOpen={setOpen}>
       <Subtitle>Add Feed</Subtitle>
       <Submit setFeeds={setFeeds}/>
