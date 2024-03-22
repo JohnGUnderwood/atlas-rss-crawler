@@ -187,7 +187,7 @@ function getElapsedTime(date1, date2) {
 
 async function fetchFeed(feedId) {
     return new Promise((resolve) => {
-        axios.get(`${process.env.NEXT_PUBLIC_FEEDS_URL}:${process.env.NEXT_PUBLIC_FEEDS_PORT}/feed/${feedId}`)
+        axios.get(`api/feed/${feedId}`)
         .then(response => resolve(response))
         .catch((error) => {
             console.log(error)
@@ -198,7 +198,7 @@ async function fetchFeed(feedId) {
 
 async function deleteFeed(feedId) {
     return new Promise((resolve) => {
-        axios.delete(`${process.env.NEXT_PUBLIC_FEEDS_URL}:${process.env.NEXT_PUBLIC_FEEDS_PORT}/feed/${feedId}`)
+        axios.delete(`api/feed/${feedId}`)
         .then(response => resolve(response))
         .catch((error) => {
             console.log(error)
@@ -209,7 +209,7 @@ async function deleteFeed(feedId) {
 
 async function startCrawl(feedId) {
     return new Promise((resolve) => {
-        axios.get(`${process.env.NEXT_PUBLIC_FEEDS_URL}:${process.env.NEXT_PUBLIC_FEEDS_PORT}/feed/${feedId}/start`)
+        axios.get(`api/feed/${feedId}/start`)
         .then(response => resolve(response))
         .catch((error) => {
             console.log(error)
@@ -220,7 +220,7 @@ async function startCrawl(feedId) {
 
 async function stopCrawl(feedId) {
     return new Promise((resolve) => {
-        axios.get(`${process.env.NEXT_PUBLIC_FEEDS_URL}:${process.env.NEXT_PUBLIC_FEEDS_PORT}/feed/${feedId}/stop`)
+        axios.get(`api/feed/${feedId}/stop`)
         .then(response => resolve(response))
         .catch((error) => {
             console.log(error)
@@ -231,7 +231,7 @@ async function stopCrawl(feedId) {
 
 async function clearCrawlHistory(feedId) {
     return new Promise((resolve) => {
-        axios.get(`${process.env.NEXT_PUBLIC_FEEDS_URL}:${process.env.NEXT_PUBLIC_FEEDS_PORT}/feed/${feedId}/history/clear`)
+        axios.get(`api/feed/${feedId}/history/clear`)
         .then(response => resolve(response))
         .catch((error) => {
             console.log(error)
@@ -242,7 +242,7 @@ async function clearCrawlHistory(feedId) {
 
 async function fetchTestResult(feedId) {
     return new Promise((resolve) => {
-        axios.get(`${process.env.NEXT_PUBLIC_FEEDS_URL}:${process.env.NEXT_PUBLIC_FEEDS_PORT}/feed/${feedId}/test`)
+        axios.get(`api/feed/${feedId}/test`)
         .then(response => resolve(response))
         .catch((error) => {
             console.log(error)
