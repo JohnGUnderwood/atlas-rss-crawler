@@ -82,7 +82,7 @@ async function fetchTestResult(feed) {
         'Content-Type': 'application/json'
     }
     return new Promise((resolve) => {
-        axios.post(`${process.env.NEXT_PUBLIC_FEEDS_URL}:${process.env.NEXT_PUBLIC_FEEDS_PORT}/test`,
+        axios.post(`api/test`,
             feed,
             {headers: headers})
         .then(response => resolve(response))
@@ -98,7 +98,7 @@ async function submitFeed(feed) {
         'Content-Type': 'application/json'
     }
     return new Promise((resolve) => {
-        axios.post(`${process.env.NEXT_PUBLIC_FEEDS_URL}:${process.env.NEXT_PUBLIC_FEEDS_PORT}/feeds`,
+        axios.post(`api/feeds`,
             feed,
             {headers: headers}
         )
