@@ -57,7 +57,7 @@ export default function Home(){
     <Button onClick={()=>setOpen(true)}>Add Feed</Button>
     <Modal open={open} setOpen={setOpen}>
       <Subtitle>Add Feed</Subtitle>
-      <Submit setFeeds={setFeeds}/>
+      <Submit setFeeds={setFeeds} setOpen={setOpen}/>
     </Modal>
     <div>
       <Feeds feeds={feeds} setFeeds={setFeeds}/>

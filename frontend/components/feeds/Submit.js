@@ -6,7 +6,7 @@ import Form from "./Form";
 import { Spinner } from '@leafygreen-ui/loading-indicator';
 import Code from '@leafygreen-ui/code';
 
-export default function Submit({setFeeds}){
+export default function Submit({setFeeds,setOpen}){
     const [testResult, setTestResult] = useState(null);
     const [loading, setLoading] = useState(false);
     const [formData, setFormData] = useState(
@@ -16,7 +16,7 @@ export default function Submit({setFeeds}){
             url: '',
             attribution: '',
             content_html_selectors:[''],
-            date_format: ''
+            date_format: '%a, %d %b %Y %H:%M:%S %Z'
         });
 
     const handleSubmit = () => {
@@ -26,17 +26,27 @@ export default function Submit({setFeeds}){
                 'lang': formData.lang,
                 'url': formData.url,
                 'content_html_selectors': formData.content_html_selectors,
-                'attribution': formData.attribution
+                'attribution': formData.attribution,
+                'date_format': formData.date_format,
             }
         };
+        setLoading(true);
         // Submit the new feed data
-        submitFeed(newFeed).then(response => setFeeds(response.data))
+        submitFeed(newFeed).then(response => {
+            setLoading(false);
+            setOpen(false);
+            setFeeds(response.data);
+        })
         .catch(e => console.log(e));
     }
 
     const testFeed = () => {
+        // Remove blank content_html_selectors
+        const newFormData = {...formData};
+        newFormData.content_html_selectors = newFormData.content_html_selectors.filter(selector => selector !== '');
+        setFormData(newFormData);
         setLoading(true)
-        fetchTestResult(formData).then(response => {
+        fetchTestResult(newFormData).then(response => {
             setTestResult(response.data);
             setLoading(false);
         }).catch(e => console.log(e));
@@ -54,7 +64,7 @@ export default function Submit({setFeeds}){
                 <>
                     <Code style={{whiteSpace:"break-spaces"}} language={'json'} copyable={false}>{JSON.stringify(testResult,null,2)}</Code>
                     <div style={{marginTop:"10px", display:"flex", gap:'10px'}}>
-                        <Button variant="primary" onClick={testFeed}>Submit Feed</Button>
+                        <Button variant="primary" onClick={handleSubmit}>Submit Feed</Button>
                         <Button variant="dangerOutline" onClick={() => setTestResult(null)}>Go Back</Button>
                     </div>
                 </>

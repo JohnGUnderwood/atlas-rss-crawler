@@ -45,7 +45,6 @@ driver = MyChromeDriver()
 
 @app.post('/test')
 def testConfig():
-    print(request.json)
     try:
         return test(request.json)
     except Exception as e:
