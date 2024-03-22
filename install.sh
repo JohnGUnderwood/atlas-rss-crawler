@@ -31,7 +31,7 @@ fi
 
 if [ -z "$CHROME_PATH" ]; then
     CHROME_PATH=$(npx @puppeteer/browsers install chrome-headless-shell@124.0.6331.0 | tail -n 1 | cut -d ' ' -f 2-)
-    echo "\nCHROME_PATH=\"$CHROME_PATH\"" >> ../.env
+    echo "CHROME_PATH=\"$CHROME_PATH\"" >> ../.env
 fi
 if [ -z "$CHROMEDRIVER_PATH" ]; then
     CHROMEDRIVER_PATH=$(npx @puppeteer/browsers install chromedriver@124.0.6331.0 | tail -n 1 | cut -d ' ' -f 2-)

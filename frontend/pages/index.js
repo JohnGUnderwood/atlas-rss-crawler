@@ -68,7 +68,8 @@ export default function Home(){
 
 async function getFeeds() {
   return new Promise((resolve) => {
-      axios.get(`${process.env.NEXT_PUBLIC_FEEDS_URL}:${process.env.NEXT_PUBLIC_FEEDS_PORT}/feeds`)
+    axios.get(`api/feeds`)
+      // axios.get(`${process.env.NEXT_PUBLIC_FEEDS_URL}:${process.env.NEXT_PUBLIC_FEEDS_PORT}/feeds`)
       .then(response => resolve(response))
       .catch((error) => {
           console.log(error)
@@ -79,7 +80,8 @@ async function getFeeds() {
 
 async function getInstantResults(query) {
   return new Promise((resolve) => {
-    axios.get(`${process.env.NEXT_PUBLIC_FEEDS_URL}:${process.env.NEXT_PUBLIC_FEEDS_PORT}/feeds/search?q=${query}`)
+    // axios.get(`${process.env.NEXT_PUBLIC_FEEDS_URL}:${process.env.NEXT_PUBLIC_FEEDS_PORT}/feeds/search?q=${query}`)
+    axios.get(`api/feeds/search?q=${query}`)
     .then(response => resolve(response))
     .catch((error) => {
         console.log(error)
