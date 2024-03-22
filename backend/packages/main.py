@@ -102,7 +102,11 @@ class Crawler:
                         'type':'paragraph',
                         'content':content,
                         'chunk':i,
-                        'lang':entry['lang']
+                        'lang':entry['lang'],
+                        'feed_id':self.FEED_ID,
+                        'attribution':entry['attribution'],
+                        'link':entry['link'],
+                        'title':entry['title'][entry['lang']],
                     }
                     if 'tags' in entry:
                         chunk.update({'tags':entry['tags']})
