@@ -2,7 +2,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS, cross_origin
 from bson.json_util import dumps
 import json
-from main import Entry,MyChromeDriver,MongoDBConnection,MyFeedParser
+from packages import Entry,MyChromeDriver,MongoDBConnection,MyFeedParser
 import traceback
 
 def returnPrettyJson(data):
@@ -17,7 +17,25 @@ def returnPrettyJson(data):
             except TypeError:
                 return repr(data)
         
-
+def test(config):
+    try:
+        feed = MyFeedParser(config['url']).parseFeed()
+        try:
+            entry = Entry(
+                DATA=feed.entries[0],
+                SELECTORS=config['content_html_selectors'],
+                LANG=config['lang'],
+                ATTRIBUTION=config['attribution'],
+                DRIVER=driver,
+                DATE_FORMAT=config['date_format'],
+                CUSTOM_FIELDS=config.get('custom_fields',None)
+            ).processEntry()
+        except Exception as e:
+            return {"error":str(traceback.format_exc())},200
+        return returnPrettyJson(entry),200
+    except Exception as e:
+        return returnPrettyJson(e),200
+    
 app = Flask(__name__)
 cors = CORS(app)
 app.config['CORS_HEADERS'] = 'Content-Type'
@@ -25,6 +43,13 @@ connection = MongoDBConnection()
 db = connection.connect()
 driver = MyChromeDriver()
 
+@app.post('/test')
+def testConfig():
+    try:
+        return test(request.json)
+    except Exception as e:
+        return returnPrettyJson(e),200
+    
 @app.get("/feeds")
 def getFeeds():
     try:
@@ -71,6 +96,14 @@ def getFeed(feedId):
         return returnPrettyJson(config), 200
     except Exception as e:
         return returnPrettyJson(e),500
+
+@app.delete("/feed/<string:feedId>")
+def deleteFeed(feedId):
+    try:
+        config = db['feeds'].find_one_and_delete({'_id':feedId})
+        return returnPrettyJson(config), 200
+    except Exception as e:
+        return returnPrettyJson(e),500
     
 @app.get("/feed/<string:feedId>/history")
 def getFeedCrawlHistory(feedId):
@@ -94,22 +127,7 @@ def deleteFeedCrawlHistory(feedId):
 def testFeed(feedId):
     try:
         f = db['feeds'].find_one({'_id':feedId},{'config':1})
-        feed = MyFeedParser(f['config']['url']).parseFeed()
-
-        try:
-            print(f['config'].get('custom_fields',None))
-            entry = Entry(
-                DATA=feed.entries[0],
-                SELECTORS=f['config']['content_html_selectors'],
-                LANG=f['config']['lang'],
-                ATTRIBUTION=f['config']['attribution'],
-                DRIVER=driver,
-                DATE_FORMAT=f['config']['date_format'],
-                CUSTOM_FIELDS=f['config'].get('custom_fields',None)
-            ).processEntry()
-        except Exception as e:
-            return {"error":str(traceback.format_exc())},200
-        return returnPrettyJson(entry),200
+        return test(config=f['config'])
     except Exception as e:
         return returnPrettyJson(e),200
 

@@ -1,0 +1,29 @@
+.feedContainer {
+    margin-bottom: 10px;
+}
+
+.feedContainer button {
+    font-size: x-small;
+    max-height: 25px;
+    max-width: 85px;
+}
+
+.crawlContainer {
+    font-size: x-small;
+}
+
+.crawlContainer button {
+    font-size: x-small;
+    max-height: 25px;
+    max-width: 85px;
+}
+
+p.cssSelector {
+    margin:0;
+}
+
+.buttonsContainer {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+}

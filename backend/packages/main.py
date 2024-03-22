@@ -51,13 +51,15 @@ class Crawler:
         except Exception as e:
             raise e
     
-    def insertEntry(self,session,entry):
-        entry.update({'feed_id':self.FEED_ID})
+    def insertEntry(self,session,entry,chunks):
         try:
             docs_collection = self.MDB_DB.docs
             feeds_collection = self.MDB_DB.feeds
+            chunks_collection = self.MDB_DB.docs_chunks
             docs_collection.insert_one(entry,session=session)
             feeds_collection.update_one({'_id':self.FEED_ID},{"$push":{"crawl.inserted":entry['id']}},session=session)
+            if len(chunks) > 0:
+                chunks_collection.insert_many(chunks,session=session)
             print("Crawler {}: Entry update transaction successful".format(self.FEED_ID))
             return
         except pymongo.errors.DuplicateKeyError:
@@ -77,9 +79,11 @@ class Crawler:
                 DATE_FORMAT=self.FEED_CONFIG['date_format'],
                 CUSTOM_FIELDS=self.FEED_CONFIG.get('custom_fields',None)
                 ).processEntry()
+            entry.update({'feed_id':self.FEED_ID})
+            chunks = self.chunkEntryContent(entry)
             try:
                 with self.CONN.get_session() as session:
-                    session.with_transaction(lambda session: self.insertEntry(session,entry))
+                    session.with_transaction(lambda session: self.insertEntry(session,entry,chunks))
             except Exception as e:
                 print("Crawler {} failed to insert entry for item {}".format(self.FEED_ID,entry['id']),e)
                 self.updateFeed({'$push':{'crawl.errors':{'entryId':entry['id'],'error':str(e)}}})
@@ -87,6 +91,33 @@ class Crawler:
             print("Crawler {} failed to create Entry object for item {}".format(self.FEED_ID,item['id']),e)
             self.updateFeed({'$push':{'crawl.errors':{'entryId':item['id'],'error':str(e)}}})
     
+    def chunkEntryContent(self,entry):
+        chunks = []
+        try:
+            if len(entry['content'][entry['lang']]) > 0:
+                for i,paragraph in enumerate(entry['content'][entry['lang']]):
+                    content = f"# {entry['title'][entry['lang']]}\n## Paragraph {i+1}\n{paragraph}"
+                    chunk = {
+                        'parent_id':entry['id'],
+                        'type':'paragraph',
+                        'content':content,
+                        'chunk':i,
+                        'lang':entry['lang'],
+                        'feed_id':self.FEED_ID,
+                        'attribution':entry['attribution'],
+                        'link':entry['link'],
+                        'title':entry['title'][entry['lang']],
+                    }
+                    if 'tags' in entry:
+                        chunk.update({'tags':entry['tags']})
+                    if 'published' in entry:
+                        chunk.update({'published':entry['published']})
+                    
+                    chunks.append(chunk)
+            return chunks   
+        except Exception as e:
+            raise Exception("Failed to chunk entry content. {}".format(e))
+        
     def start(self):
         config = self.FEED_CONFIG
         crawl = {'pid':self.PID,'start':datetime.now(),'crawled':[],'inserted':[],'errors':[],'duplicates':[]}

@@ -7,6 +7,7 @@ import Button from "@leafygreen-ui/button";
 import Modal from "@leafygreen-ui/modal";
 import { Spinner } from "@leafygreen-ui/loading-indicator";
 import Code from '@leafygreen-ui/code';
+import styles from "./feed.module.css";
 
 export default function Feed({f,feeds,setFeeds}){
     const [testResult, setTestResult] = useState(null);
@@ -73,6 +74,14 @@ export default function Feed({f,feeds,setFeeds}){
         }).catch(e => console.log(e));
     };
 
+    const remove = (id) => {
+        deleteFeed(id).then(response => {
+            const newFeeds = {...feeds};
+            delete newFeeds[id];
+            setFeeds(newFeeds);
+        }).catch(e => console.log(e));
+    };
+
     return (
         <div>
         <Modal open={open} setOpen={setOpen}>
@@ -88,16 +97,24 @@ export default function Feed({f,feeds,setFeeds}){
             description={`${feed.status? feed.status : 'not run'}`}
             darkMode={false}
         >
-            <div>
-                <div style={{ display: "grid", gridTemplateColumns: "50px 100%", gap: "10px", alignItems:"center"}}>
+            <div className={styles.feedContainer}>
+                <p>
+                    <span style={{ fontWeight: "bold" }}>URL: </span><span><Link>{feed.config.url}</Link></span>
+                </p>
+                <div className={styles.buttonsContainer}>
                     <Button onClick={() => test(feed._id)}>Test</Button>
-                    <p>
-                        <span style={{ fontWeight: "bold" }}>URL: </span><span><Link>{feed.config.url}</Link></span>
-                    </p>
+                    <Button variant="danger" onClick={() => remove(feed._id)}>Delete</Button>
                 </div>
+            </div>
+            <Label>Crawl Details</Label>
+            <div className={styles.crawlContainer}>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "10px" }}>
                     <p>
-                        <span style={{ fontWeight: "bold" }}>CSS Selectors: </span><span>{JSON.stringify(feed.config.content_html_selectors)}</span>
+                        <span style={{ fontWeight: "bold" }}>CSS Selectors: </span>
+                        {feed.config.content_html_selectors.map((selector, index) => (
+                            <p className={styles.cssSelector} key={`${feed._id}_${selector}_${index}`}>{selector}</p>
+                        ))}
+                        
                     </p>
                     <p>
                         <span style={{ fontWeight: "bold" }}>Language: </span><span>{feed.config.lang}</span>
@@ -134,7 +151,7 @@ export default function Feed({f,feeds,setFeeds}){
                     </div>
                     
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "10px" }}>
+                <div className={styles.buttonsContainer}>
                     {feed.status == 'running'?<Button variant="danger" onClick={() => stop(feed._id)}>Stop</Button>
                     :feed.status == 'starting'? <Button variant="primaryOutline">Start</Button>
                     :feed.status == 'stopping'? <Button variant="dangerOutline">Stop</Button>
@@ -170,7 +187,18 @@ function getElapsedTime(date1, date2) {
 
 async function fetchFeed(feedId) {
     return new Promise((resolve) => {
-        axios.get(`${process.env.NEXT_PUBLIC_FEEDS_URL}:${process.env.NEXT_PUBLIC_FEEDS_PORT}/feed/${feedId}`)
+        axios.get(`api/feed/${feedId}`)
+        .then(response => resolve(response))
+        .catch((error) => {
+            console.log(error)
+            resolve(error.response.data);
+        })
+    });
+}
+
+async function deleteFeed(feedId) {
+    return new Promise((resolve) => {
+        axios.delete(`api/feed/${feedId}`)
         .then(response => resolve(response))
         .catch((error) => {
             console.log(error)
@@ -181,7 +209,7 @@ async function fetchFeed(feedId) {
 
 async function startCrawl(feedId) {
     return new Promise((resolve) => {
-        axios.get(`${process.env.NEXT_PUBLIC_FEEDS_URL}:${process.env.NEXT_PUBLIC_FEEDS_PORT}/feed/${feedId}/start`)
+        axios.get(`api/feed/${feedId}/start`)
         .then(response => resolve(response))
         .catch((error) => {
             console.log(error)
@@ -192,7 +220,7 @@ async function startCrawl(feedId) {
 
 async function stopCrawl(feedId) {
     return new Promise((resolve) => {
-        axios.get(`${process.env.NEXT_PUBLIC_FEEDS_URL}:${process.env.NEXT_PUBLIC_FEEDS_PORT}/feed/${feedId}/stop`)
+        axios.get(`api/feed/${feedId}/stop`)
         .then(response => resolve(response))
         .catch((error) => {
             console.log(error)
@@ -203,7 +231,7 @@ async function stopCrawl(feedId) {
 
 async function clearCrawlHistory(feedId) {
     return new Promise((resolve) => {
-        axios.get(`${process.env.NEXT_PUBLIC_FEEDS_URL}:${process.env.NEXT_PUBLIC_FEEDS_PORT}/feed/${feedId}/history/clear`)
+        axios.get(`api/feed/${feedId}/history/clear`)
         .then(response => resolve(response))
         .catch((error) => {
             console.log(error)
@@ -214,7 +242,7 @@ async function clearCrawlHistory(feedId) {
 
 async function fetchTestResult(feedId) {
     return new Promise((resolve) => {
-        axios.get(`${process.env.NEXT_PUBLIC_FEEDS_URL}:${process.env.NEXT_PUBLIC_FEEDS_PORT}/feed/${feedId}/test`)
+        axios.get(`api/feed/${feedId}/test`)
         .then(response => resolve(response))
         .catch((error) => {
             console.log(error)

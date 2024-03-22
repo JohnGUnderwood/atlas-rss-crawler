@@ -8,13 +8,15 @@ Crawler to ingest RSS feeds and linked pages into MongoDB Atlas.
 - Database: MongoDB Atlas
 
 # How can I run it?
-First you will need to set your database connection string and optional database name (defaults to 'news-demo') in `.env`. There is an example of how to name your variables in [`example.env`](./example.env). Also add API keys for the embedding service. If you don't want to embed your content for vector search then you
+First you will need to set your database connection string and optional database name (defaults to 'news-demo') in `.env`. There is an example of how to name your variables in [`example.env`](./example.env). Also add API keys for the embedding service.
 
 After that you can either install everything to a local environment or use docker.
 
 Once everything is running you can access the frontend at http://localhost:3000/
 
 ![Frontend](screenshots/frontend.png)
+
+Note that by default the RSS feeds in [feeds.py](./backend/feeds.py) will be installed into your Atlas Cluster. If you don't want these or want to start with different feeds then you must modify that file.
 
 ## Local Install
 ```
@@ -26,31 +28,33 @@ Set up dependencies - like chromium and chromedriver.
 ```
 Starts the required processes using supervisord.
 
-## Build docker image and run container locally.
-```
-./buildRunDockerLocal.sh
-```
+## Docker
 
-Will build a docker image and then run it in a local container.
-
-## Build multi-arch images and push to your docker repository
-```
-./buildAndPush.sh
-```
-
-This creates multi-arch images (linux/amd64 and linux/arm64) and pushes them to a repo of your choice. Due to some architecture-dependant binaries this project makes use of [docker's ability to build for multiple architectures](https://docs.docker.com/build/building/multi-platform/#cross-compilation).
-
-## Pull Docker container
+### Pull: Docker container from public repo
 ```
 ./runDocker.sh
 ```
 
 This pulls the latest image hosted at [johnunderwood197/rsscrawler](https://hub.docker.com/r/johnunderwood197/rsscrawler) and runs it locally in a container. This uses `docker pull` which should automatically pull the correct image for your architecture (amd64 or arm64).
 
+### Build: Docker image and run container locally.
+```
+./buildRunDockerLocal.sh
+```
+
+Will build a docker image and then run it in a local container.
+
+### Publish: build and push multi-arch images to your docker repository
+```
+./buildAndPush.sh
+```
+
+This creates multi-arch images (linux/amd64 and linux/arm64) and pushes them to a repo of your choice. Due to some architecture-dependant binaries this project makes use of [docker's ability to build for multiple architectures](https://docs.docker.com/build/building/multi-platform/#cross-compilation).
+
 # Further Questions..
 
 ## Okay. How does it work?
-The application uses a few very cool packages to read an RSS feed, open the reference web pages, and parse the html. I am very grateful to (amongst a host of other amazing projects you can find listed [here](./requirements.txt), [here](./backend/package.json) and [here](./frontend/package.json)):
+The application uses a few very cool packages to read an RSS feed, open the reference web pages, and parse the html. I am very grateful to (amongst a host of other amazing projects you can find listed [here](./backend/requirements.txt), [here](./backend/package.json) and [here](./frontend/package.json)):
 
 [feedparser](https://feedparser.readthedocs.io/en/latest/#)
 

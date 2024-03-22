@@ -10,3 +10,6 @@ supervisor==4.2.5
 # httpx needs to be compatible with mistralai
 httpx[http2]<0.26.0,>=0.25.2 
 python-dotenv==1.0.1
+requests==2.31.0
+OpenAI==1.13.3
+mistralai==0.1.3

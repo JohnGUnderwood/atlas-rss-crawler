@@ -1,5 +1,5 @@
 import os
-from connection import MongoDBConnection
+from packages import MongoDBConnection
 
 # Nice way to load environment variables for deployments
 from dotenv import load_dotenv
@@ -8,21 +8,32 @@ load_dotenv()
 # Find out what vector provider we're using so we can load the right libraries
 provider = os.environ["PROVIDER"]
 
-# OpenAI Stuff
+# Embedding services. Default to using Azure OpenAI.
 if provider == "openai":
     from openai import OpenAI
-    oai_client = OpenAI(api_key=os.environ["OPENAI_KEY"])
+    oai_client = OpenAI(api_key=os.environ["OPENAIAPIKEY"])
 elif provider == "vectorservice":
     import requests
 elif provider == "mistral":
     from mistralai.client import MistralClient
     mistral_client = MistralClient(api_key=os.environ["MISTRAL_API_KEY"])
+elif provider == "azure_openai":
+    from openai import AzureOpenAI
+    oai_client = AzureOpenAI(api_key=os.environ["OPENAIAPIKEY"])
+else:
+    print("No valid provider specified. Defaulting to Azure OpenAI.")
+    provider = "azure_openai"
+    from openai import AzureOpenAI
+    oai_client = AzureOpenAI(
+        api_key=os.environ["OPENAIAPIKEY"],
+        api_version="2023-12-01-preview",
+        azure_endpoint=os.getenv("OPENAIENDPOINT")
+    )
 
 # Set up your MongoDB connection and specify collection and inputs/outputs
 connection=MongoDBConnection()
 db=connection.connect()
-collection = db.docs
-chunks_collection = db.docs_chunks
+collection = db.docs_chunks
 
 # Initialize the change stream
 change_stream = collection.watch([], full_document='updateLookup')
@@ -39,6 +50,12 @@ def get_embedding_OpenAI(text):
    vector_embedding = oai_client.embeddings.create(input = [text], model="text-embedding-ada-002").data[0].embedding
    return vector_embedding
 
+# Function to get embeddings from Azure OpenAI
+def get_embedding_Azure_OpenAI(text):
+   text = text.replace("\n", " ")
+   vector_embedding = oai_client.embeddings.create(input = [text], model=os.environ("OPENAIDEPLOYMENT")).data[0].embedding
+   return vector_embedding
+
 # Function to get embeddings from Mistral
 def get_embedding_Mistral(text):
     vector_embedding = mistral_client.embeddings(model="mistral-embed", input=[text]).data[0].embedding
@@ -52,62 +69,18 @@ def get_embedding(text):
         return get_embedding_VectorService(text)
     elif provider == "mistral":
         return get_embedding_Mistral(text)
-
-# Create chunks from summary and array of paragraphs
-def chunk_and_embed_content(entry):
-    chunks = []
-    if 'summary' in entry:
-        content = "# {title}\n## Summary\n{summary}".format(title=entry['title'][entry['lang']],summary=entry['summary'][entry['lang']])
-        chunks.append({
-            'parent_id':entry['id'],
-            'type':'summary',
-            'content':content,
-            'embedding':get_embedding(content)
-        })
-
-    if len(entry['content'][entry['lang']]) > 0:
-        for i,paragraph in enumerate(entry['content'][entry['lang']]):
-            content = "# {title}\n## Paragraph {number}\n{paragraph}".format(title=entry['title'][entry['lang']],number=i+1,paragraph=paragraph)
-            chunks.append({
-                'parent_id':entry['id'],
-                'type':'paragraph',
-                'content':content,
-                'embedding':get_embedding(content),
-            })
-            
-    for i,chunk in enumerate(chunks):
-        chunk.update({'chunk':i})
-        if 'tags' in entry:
-            chunk.update({'tags':entry['tags']})
-        if 'published' in entry:
-            chunk.update({'published':entry['published']})
-    
-    return chunks
-
-def insert_chunks(session,parent,chunks):
-    chunks_collection.insert_many(chunks,session=session)
-    collection.update_one({'_id': parent["_id"]},{"$set": {'embedded': True}},session=session)
-
+    elif provider == "azure_openai":
+        return get_embedding_Azure_OpenAI(text)
 # Function to populate all the initial embeddings by detecting any fields with missing embeddings
 def initial_sync():
     # We only care about documents with missing keys
-    query = {
-        "$or": [
-            {"embedded": False},
-            {"embedded": {"$exists": False}}
-        ]
-    }
+    query = {"embedding": {"$exists": False}}
     results = collection.find(query)
 
     # Every document gets a new embedding
     total_records = 0
     for result in results:
-        total_records = total_records + 1
-        chunks = chunk_and_embed_content(result)
-
-        # Store the vector embeddings back into collection
-        with connection.get_session() as session:
-            session.with_transaction(lambda session: insert_chunks(session,result,chunks))
+        collection.update_one({"_id":result["_id"]}, {"$set": {"embedding":get_embedding(result['content'])}})
 
     return total_records
 
@@ -124,12 +97,8 @@ def handle_changes(change):
     if operation_type == "replace" or operation_type == "update" or operation_type == "insert":
         # Get the _id for update later and our input field to vectorize
         entry = change['fullDocument']
-        chunks = chunk_and_embed_content(entry)
-        # Store the vector embeddings back into collection
-        with connection.get_session() as session:
-            session.with_transaction(lambda session: insert_chunks(session,entry,chunks))
+        collection.update_one({"_id":entry["_id"]}, {"$set": {"embedding":get_embedding(entry['content'])}})
             
-
 # Perform initial sync
 print(f"Initial sync for {db.name} db and {collection.name} collection. Watching for changes to 'content' and writing to 'embedding'...")
 total_records = initial_sync()

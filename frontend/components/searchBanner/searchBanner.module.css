@@ -2,14 +2,16 @@
 .container {
     display: flex;
     flex-direction: column;
-    align-items: start;
     padding-left: 10px;
+    padding-right: 15px;
 }
   
 /* Tablets, small desktops */
 @media (min-width: 600px) {
     .container {
         flex-direction: row;
+        padding-right: 30px;
+        align-items: end;
     }
 }
 
@@ -17,6 +19,8 @@
 @media (min-width: 900px) {
     .container {
         flex-direction: row;
+        padding-right: 60px;
+        align-items: end;
     }
 }
 
@@ -24,5 +28,8 @@
 @media (min-width: 1200px) {
     .container {
         flex-direction: row;
+        padding-right: 80px;
+        align-items: end;
+
     }
 }
