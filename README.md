@@ -16,6 +16,8 @@ Once everything is running you can access the frontend at http://localhost:3000/
 
 ![Frontend](screenshots/frontend.png)
 
+Note that by default the RSS feeds in [feeds.py](./backend/feeds.py) will be installed into your Atlas Cluster. If you don't want these or want to start with different feeds then you must modify that file.
+
 ## Local Install
 ```
 ./install.sh
