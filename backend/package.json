@@ -1,6 +1,5 @@
 {
   "dependencies": {
-    "@puppeteer/browsers": "^2.1.0",
-    "npx": "^10.2.2"
+    "@puppeteer/browsers": "^2.1.0"
   }
 }
