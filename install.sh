@@ -22,12 +22,6 @@ echo "|> Installing Backend. <|"
 source .env
 
 cd backend
-# if ! command -v npx &> /dev/null \
-#     && ! npm list -g --depth=0 @puppeteer/browsers &> /dev/null \
-#     && ! npm list --depth=0 @puppeteer/browsers &> /dev/null;
-#     then
-#     npm install
-# fi
 if ! npm list -g --depth=0 @puppeteer/browsers &> /dev/null \
     && ! npm list --depth=0 @puppeteer/browsers &> /dev/null;
     then
@@ -36,12 +30,10 @@ fi
 
 if [ -z "$CHROME_PATH" ]; then
     CHROME_PATH=$(./node_modules/.bin/browsers install chrome-headless-shell@124.0.6331.0 | tail -n 1 | cut -d ' ' -f 2-)
-    # CHROME_PATH=$(npx @puppeteer/browsers install chrome-headless-shell@124.0.6331.0 | tail -n 1 | cut -d ' ' -f 2-)
-    echo "CHROME_PATH=\"$CHROME_PATH\"" >> ../.env
+    echo "\nCHROME_PATH=\"$CHROME_PATH\"" >> ../.env
 fi
 if [ -z "$CHROMEDRIVER_PATH" ]; then
     CHROMEDRIVER_PATH=$(./node_modules/.bin/browsers install chromedriver@124.0.6331.0 | tail -n 1 | cut -d ' ' -f 2-)
-    # CHROMEDRIVER_PATH=$(npx @puppeteer/browsers install chromedriver@124.0.6331.0 | tail -n 1 | cut -d ' ' -f 2-)
     echo "CHROMEDRIVER_PATH=\"$CHROMEDRIVER_PATH\"" >> ../.env
 fi
 
