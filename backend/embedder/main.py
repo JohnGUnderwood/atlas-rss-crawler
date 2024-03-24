@@ -20,6 +20,14 @@ elif provider == "mistral":
 elif provider == "azure_openai":
     from openai import AzureOpenAI
     oai_client = AzureOpenAI(api_key=os.environ["OPENAIAPIKEY"])
+elif provider == "fireworks":
+    from openai import OpenAI
+    client = OpenAI(
+        api_key=os.environ["FIREWORKS_API_KEY"],
+        base_url="https://api.fireworks.ai/inference/v1"
+    )
+elif provider == "nomic":
+    from nomic import embed
 else:
     print("No valid provider specified. Defaulting to Azure OpenAI.")
     provider = "azure_openai"
@@ -59,6 +67,25 @@ def get_embedding_Azure_OpenAI(text):
 # Function to get embeddings from Mistral
 def get_embedding_Mistral(text):
     vector_embedding = mistral_client.embeddings(model="mistral-embed", input=[text]).data[0].embedding
+    return vector_embedding
+
+# Function to get embeddings from Fireworks.ai
+def get_embedding_Fireworks(text):
+    text = text.replace("\n", " ")
+    vector_embedding = client.embeddings.create(
+        model="nomic-ai/nomic-embed-text-v1.5",
+        input=f"search document: {text}",
+        dimensions=os.getenv("EMBEDDING_DIMENSIONS",1536)
+    ).data[0].embedding
+    return vector_embedding
+
+def get_embedding_Nomic(text):
+    vector_embedding = embed.text(
+        texts=[text],
+        model='nomic-embed-text-v1.5',
+        task_type="search_document",
+        dimensionality=os.getenv("EMBEDDING_DIMENSIONS",1536)
+    )['embeddings']
     return vector_embedding
 
 # Providing multiple embedding services depending on config

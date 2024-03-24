@@ -1,5 +1,9 @@
 from packages import MongoDBConnection
 from pymongo.errors import CollectionInvalid,OperationFailure
+from dotenv import load_dotenv
+from os import getenv
+
+load_dotenv()
 
 connection=MongoDBConnection()
 db=connection.connect()
@@ -242,7 +246,7 @@ docs_chunks_vector_index = {
             {
                 "type": "vector",
                 "path": "embedding",
-                "numDimensions": 1536,
+                "numDimensions": getenv("EMBEDDING_DIMENSIONS",1536),
                 "similarity": "cosine"
             },
             {

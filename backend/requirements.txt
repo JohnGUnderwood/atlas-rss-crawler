@@ -13,3 +13,4 @@ python-dotenv==1.0.1
 requests==2.31.0
 OpenAI==1.13.3
 mistralai==0.1.3
+nomic==3.0.15
