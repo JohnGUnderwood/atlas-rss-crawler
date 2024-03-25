@@ -10,6 +10,20 @@ Crawler to ingest RSS feeds and linked pages into MongoDB Atlas.
 # How can I run it?
 First you will need to set your database connection string and optional database name (defaults to 'news-demo') in `.env`. There is an example of how to name your variables in [`example.env`](./example.env). Also add API keys for the embedding service.
 
+```
+MDBCONNSTR -- Connection string for your Atlas Cluster
+MDB_DB -- MongoDB database to install to (defaults to 'news-demo')
+VECTOR_SERVICE_URL -- If you are using a self-hosted embedding service
+OPENAIAPIKEY -- OpenAI API Key
+OPENAIDEPLOYMENT -- Model deployment if using Azure OpenAI
+OPENAIENDPOIN -- Endpoint if using Azure OpenAI deployment
+MISTRAL_API_KEY - Mistral.ai embeddings
+FIREWORKS_API_KEY -- Fireworks.ai embeddings
+NOMIC_API_KEY -- Nomic Atlas embeddings
+PROVIDER -- Embedding provider: openai | azure_openai | vectorservice | mistral | fireworks | nomic
+EMBEDDING_DIMENSIONS - Size of dimensions to use. Depends on the embedding provider and model.
+```
+
 After that you can either install everything to a local environment or use docker.
 
 Once everything is running you can access the frontend at http://localhost:3000/
