@@ -1,5 +1,20 @@
+.toggle {
+    float: right;
+    border-radius: 8px;
+}
+.toggle:hover {
+    background-color: #889397;
+    /* background-color: red; */
+    cursor: pointer;
+}
+
 .feedContainer {
     margin-bottom: 10px;
+}
+
+.feedContainer > div {
+    margin-top: 5px;
+    margin-bottom: 5px;
 }
 
 .feedContainer button {
@@ -10,6 +25,11 @@
 
 .crawlContainer {
     font-size: x-small;
+}
+
+.crawlContainer > div {
+    margin-top: 5px;
+    margin-bottom: 5px;
 }
 
 .crawlContainer button {

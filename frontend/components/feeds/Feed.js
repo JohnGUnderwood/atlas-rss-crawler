@@ -1,13 +1,15 @@
 
 import axios from 'axios';
-import ExpandableCard from "@leafygreen-ui/expandable-card";
-import { Subtitle, Label, Description, Overline, Link} from "@leafygreen-ui/typography";
+import Icon from '@leafygreen-ui/icon';
+import Card from '@leafygreen-ui/card';
+import { Subtitle, Label, Description, Overline, Link, H3} from "@leafygreen-ui/typography";
 import { useRef, useState, useEffect } from 'react';
 import Button from "@leafygreen-ui/button";
 import Modal from "@leafygreen-ui/modal";
 import { Spinner } from "@leafygreen-ui/loading-indicator";
 import Code from '@leafygreen-ui/code';
 import styles from "./feed.module.css";
+import { useRouter } from 'next/router';
 
 export default function Feed({f,feeds,setFeeds}){
     const [testResult, setTestResult] = useState(null);
@@ -15,6 +17,13 @@ export default function Feed({f,feeds,setFeeds}){
     const [testLoading, setTestLoading] = useState(false);
     const [open, setOpen] = useState(false);
     const intervalId = useRef();
+    const router = useRouter();
+
+    const [showDetails, setShowDetails] = useState(false);
+
+    const toggleDetails = () => {
+        setShowDetails(!showDetails);
+    }
 
 
     useEffect(() => {
@@ -92,33 +101,33 @@ export default function Feed({f,feeds,setFeeds}){
                 :<></>
             }
         </Modal>
-        <ExpandableCard
-            title={`${feed.config.attribution} - ${feed._id}`}
-            description={`${feed.status? feed.status : 'not run'}`}
-            darkMode={false}
-        >
+        <Card>
             <div className={styles.feedContainer}>
-                <p>
+                <Link onClick={() => router.push(`/feed/${feed._id}`)}><H3>{feed.config.attribution}</H3></Link>
+                <br></br>
+                <Label>{`${feed.status? feed.status : 'not run'}`}</Label>
+                <div>
                     <span style={{ fontWeight: "bold" }}>URL: </span><span><Link>{feed.config.url}</Link></span>
-                </p>
+                </div>
                 <div className={styles.buttonsContainer}>
                     <Button onClick={() => test(feed._id)}>Test</Button>
                     <Button variant="danger" onClick={() => remove(feed._id)}>Delete</Button>
                 </div>
             </div>
-            <Label>Crawl Details</Label>
+            <span><Label>Crawl Details</Label><Icon className={styles.toggle} onClick={toggleDetails} glyph={showDetails? "ChevronDown": "ChevronUp"} fill="None" /></span>
+            {showDetails?
             <div className={styles.crawlContainer}>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "10px" }}>
-                    <p>
+                    <div>
                         <span style={{ fontWeight: "bold" }}>CSS Selectors: </span>
                         {feed.config.content_html_selectors.map((selector, index) => (
-                            <p className={styles.cssSelector} key={`${feed._id}_${selector}_${index}`}>{selector}</p>
+                            <div className={styles.cssSelector} key={`${feed._id}_${selector}_${index}`}>{selector}</div>
                         ))}
                         
-                    </p>
-                    <p>
+                    </div>
+                    <div>
                         <span style={{ fontWeight: "bold" }}>Language: </span><span>{feed.config.lang}</span>
-                    </p>
+                    </div>
                 </div>
                 <div>
                     <div>
@@ -128,23 +137,23 @@ export default function Feed({f,feeds,setFeeds}){
                         {
                             feed.crawl ?
                             feed.crawl.duplicates.length >= feed.crawl.crawled.length?
-                            <p>
+                            <div>
                                 <span>No new entries found.</span>
-                            </p>
+                            </div>
                             :<div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "10px" }}>
                             
-                            <p>
+                            <div>
                                 <span style={{ fontWeight: "bold" }}>Crawled: </span><span>{feed.crawl.crawled?.length}</span>
-                            </p>
-                            <p>
+                            </div>
+                            <div>
                                 <span style={{ fontWeight: "bold" }}>Inserted: </span><span>{feed.crawl.inserted?.length}</span>
-                            </p>
-                            <p>
+                            </div>
+                            <div>
                                 <span style={{ fontWeight: "bold" }}>Duplicates: </span><span>{feed.crawl.duplicates?.length}</span>
-                            </p>
-                            <p>
+                            </div>
+                            <div>
                                 <span style={{ fontWeight: "bold" }}>Errors: </span><span>{feed.crawl.errors?.length}</span>
-                            </p>
+                            </div>
                             </div>
                             :<></>
                         }
@@ -157,10 +166,10 @@ export default function Feed({f,feeds,setFeeds}){
                     :feed.status == 'stopping'? <Button variant="dangerOutline">Stop</Button>
                     :<Button variant="primary" onClick={() => start(feed._id)}>Start</Button>}
                     <Button variant="dangerOutline" onClick={() => clear(feed._id)}>Clear History</Button>
-                    <Button variant="danger">Delete Docs</Button>
                 </div>
             </div>
-        </ExpandableCard>
+            :<></>}
+        </Card>
         </div>
     );
 };
@@ -187,7 +196,7 @@ function getElapsedTime(date1, date2) {
 
 async function fetchFeed(feedId) {
     return new Promise((resolve) => {
-        axios.get(`api/feed/${feedId}`)
+        axios.get(`/api/feed/${feedId}`)
         .then(response => resolve(response))
         .catch((error) => {
             console.log(error)
@@ -198,7 +207,7 @@ async function fetchFeed(feedId) {
 
 async function deleteFeed(feedId) {
     return new Promise((resolve) => {
-        axios.delete(`api/feed/${feedId}`)
+        axios.delete(`/api/feed/${feedId}`)
         .then(response => resolve(response))
         .catch((error) => {
             console.log(error)
@@ -209,7 +218,7 @@ async function deleteFeed(feedId) {
 
 async function startCrawl(feedId) {
     return new Promise((resolve) => {
-        axios.get(`api/feed/${feedId}/start`)
+        axios.get(`/api/feed/${feedId}/start`)
         .then(response => resolve(response))
         .catch((error) => {
             console.log(error)
@@ -220,7 +229,7 @@ async function startCrawl(feedId) {
 
 async function stopCrawl(feedId) {
     return new Promise((resolve) => {
-        axios.get(`api/feed/${feedId}/stop`)
+        axios.get(`/api/feed/${feedId}/stop`)
         .then(response => resolve(response))
         .catch((error) => {
             console.log(error)
@@ -231,7 +240,7 @@ async function stopCrawl(feedId) {
 
 async function clearCrawlHistory(feedId) {
     return new Promise((resolve) => {
-        axios.get(`api/feed/${feedId}/history/clear`)
+        axios.get(`/api/feed/${feedId}/history/clear`)
         .then(response => resolve(response))
         .catch((error) => {
             console.log(error)
@@ -242,7 +251,7 @@ async function clearCrawlHistory(feedId) {
 
 async function fetchTestResult(feedId) {
     return new Promise((resolve) => {
-        axios.get(`api/feed/${feedId}/test`)
+        axios.get(`/api/feed/${feedId}/test`)
         .then(response => resolve(response))
         .catch((error) => {
             console.log(error)
