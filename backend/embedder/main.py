@@ -6,24 +6,24 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Find out what vector provider we're using so we can load the right libraries
-provider = os.environ["PROVIDER"]
+provider = os.getenv("PROVIDER",default="azure_openai")
 
 # Embedding services. Default to using Azure OpenAI.
 if provider == "openai":
     from openai import OpenAI
-    oai_client = OpenAI(api_key=os.environ["OPENAIAPIKEY"])
+    oai_client = OpenAI(api_key=os.getenv("OPENAIAPIKEY"))
 elif provider == "vectorservice":
     import requests
 elif provider == "mistral":
     from mistralai.client import MistralClient
-    mistral_client = MistralClient(api_key=os.environ["MISTRAL_API_KEY"])
+    mistral_client = MistralClient(api_key=os.getenv("MISTRAL_API_KEY"))
 elif provider == "azure_openai":
     from openai import AzureOpenAI
-    oai_client = AzureOpenAI(api_key=os.environ["OPENAIAPIKEY"])
+    oai_client = AzureOpenAI(api_key=os.getenv("OPENAIAPIKEY"))
 elif provider == "fireworks":
     from openai import OpenAI
     client = OpenAI(
-        api_key=os.environ["FIREWORKS_API_KEY"],
+        api_key=os.getenv("FIREWORKS_API_KEY"),
         base_url="https://api.fireworks.ai/inference/v1"
     )
 elif provider == "nomic":
@@ -33,7 +33,7 @@ else:
     provider = "azure_openai"
     from openai import AzureOpenAI
     oai_client = AzureOpenAI(
-        api_key=os.environ["OPENAIAPIKEY"],
+        api_key=os.getenv("OPENAIAPIKEY"),
         api_version="2023-12-01-preview",
         azure_endpoint=os.getenv("OPENAIENDPOINT")
     )
@@ -48,7 +48,7 @@ change_stream = collection.watch([], full_document='updateLookup')
 
 # Function to get embeddings from a VectorService endpoint  
 def get_embedding_VectorService(embed_text):
-    response = requests.get(os.environ["VECTOR_SERVICE_URL"], params={"text":embed_text }, headers={"accept": "application/json"})
+    response = requests.get(os.getenv("VECTOR_SERVICE_URL"), params={"text":embed_text }, headers={"accept": "application/json"})
     vector_embedding = response.json()
     return vector_embedding
 
@@ -61,7 +61,7 @@ def get_embedding_OpenAI(text):
 # Function to get embeddings from Azure OpenAI
 def get_embedding_Azure_OpenAI(text):
    text = text.replace("\n", " ")
-   vector_embedding = oai_client.embeddings.create(input = [text], model=os.environ("OPENAIDEPLOYMENT")).data[0].embedding
+   vector_embedding = oai_client.embeddings.create(input = [text], model=os.getenv("OPENAIDEPLOYMENT")).data[0].embedding
    return vector_embedding
 
 # Function to get embeddings from Mistral
@@ -98,6 +98,10 @@ def get_embedding(text):
         return get_embedding_Mistral(text)
     elif provider == "azure_openai":
         return get_embedding_Azure_OpenAI(text)
+    elif provider == "fireworks":
+        return get_embedding_Fireworks(text)
+    elif provider == "nomic":
+        return get_embedding_Nomic(text)
 # Function to populate all the initial embeddings by detecting any fields with missing embeddings
 def initial_sync():
     # We only care about documents with missing keys

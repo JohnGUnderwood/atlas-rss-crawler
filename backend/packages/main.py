@@ -10,7 +10,7 @@ import signal
 import sys
 import traceback
 import httpx
-from os import getenv,environ
+from os import getenv
 from dotenv import load_dotenv
 from time import sleep
 

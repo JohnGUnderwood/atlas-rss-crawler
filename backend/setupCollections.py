@@ -246,7 +246,7 @@ docs_chunks_vector_index = {
             {
                 "type": "vector",
                 "path": "embedding",
-                "numDimensions": getenv("EMBEDDING_DIMENSIONS",1536),
+                "numDimensions": int(getenv("EMBEDDING_DIMENSIONS",1536)),
                 "similarity": "cosine"
             },
             {
@@ -277,6 +277,7 @@ collections = [
     {'n':"docs",'m':docs_search_index},
     {'n':'docs_chunks','m':docs_chunks_search_index,'v':docs_chunks_vector_index}]
 
+print("Creating collections and indexes on database: ",db.name)
 for c in collections:
     try:
         db.create_collection(c['n'],check_exists=True)
