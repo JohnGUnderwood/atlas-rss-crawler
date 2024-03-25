@@ -75,7 +75,7 @@ def get_embedding_Fireworks(text):
     vector_embedding = client.embeddings.create(
         model="nomic-ai/nomic-embed-text-v1.5",
         input=f"search document: {text}",
-        dimensions=os.getenv("EMBEDDING_DIMENSIONS",1536)
+        dimensions=os.getenv("EMBEDDING_DIMENSIONS",768)
     ).data[0].embedding
     return vector_embedding
 
@@ -84,7 +84,7 @@ def get_embedding_Nomic(text):
         texts=[text],
         model='nomic-embed-text-v1.5',
         task_type="search_document",
-        dimensionality=os.getenv("EMBEDDING_DIMENSIONS",1536)
+        dimensionality=os.getenv("EMBEDDING_DIMENSIONS",768)
     )['embeddings']
     return vector_embedding
 
