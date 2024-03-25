@@ -42,141 +42,144 @@ docs_search_index = {
         "mappings": {
             "dynamic": False,
             "fields": {
-            "published": [
-                {
-                "type": "date"
+                "_id":{
+                    "type":"token"
                 },
-                {
-                "type": "dateFacet"
-                }
-            ],
-            "attribution": [
-                {
-                "type": "string"
-                },
-                {
-                "type": "token"
-                },
-                {
-                "type": "stringFacet"
-                }
-            ],
-            "authors": [
-                {
-                "type": "string"
-                },
-                {
-                "type": "token"
-                },
-                {
-                "type": "stringFacet"
-                }
-            ],
-            "lang": [
-                {
-                "type": "token"
-                },
-                {
-                "type": "stringFacet"
-                }
-            ],
-            "tags": [
-                {
-                "type": "string"
-                },
-                {
-                "type": "token"
-                },
-                {
-                "type": "stringFacet"
-                }
-            ],
-            "nasdaq_tickers": [
-                {
-                "type": "string"
-                },
-                {
-                "type": "token"
-                },
-                {
-                "type": "stringFacet"
-                }
-            ],
-            "summary": {
-                "type": "document",
-                "fields": {
-                "en": {
-                    "type": "string",
-                    "analyzer": "lucene.english",
-                    "searchAnalyzer": "lucene.english"
-                },
-                "es": {
-                    "type": "string",
-                    "analyzer": "lucene.spanish",
-                    "searchAnalyzer": "lucene.spanish"
-                },
-                "fr": {
-                    "type": "string",
-                    "analyzer": "lucene.french",
-                    "searchAnalyzer": "lucene.french"
-                }
-                }
-            },
-            "content": {
-                "type": "document",
-                "fields": {
-                "en": {
-                    "type": "string",
-                    "analyzer": "lucene.english",
-                    "searchAnalyzer": "lucene.english"
-                },
-                "es": {
-                    "type": "string",
-                    "analyzer": "lucene.spanish",
-                    "searchAnalyzer": "lucene.spanish"
-                },
-                "fr": {
-                    "type": "string",
-                    "analyzer": "lucene.french",
-                    "searchAnalyzer": "lucene.french"
-                }
-                }
-            },
-            "title": {
-                "type": "document",
-                "fields": {
-                "en": [
+                "published": [
                     {
-                    "type": "string",
-                    "analyzer": "lucene.english",
-                    "searchAnalyzer": "lucene.english"
+                    "type": "date"
                     },
                     {
-                    "type": "autocomplete"
+                    "type": "dateFacet"
                     }
                 ],
-                "es": [
+                "attribution": [
                     {
-                    "type": "string",
-                    "analyzer": "lucene.spanish",
-                    "searchAnalyzer": "lucene.spanish"
+                    "type": "string"
                     },
                     {
-                    "type": "autocomplete"
+                    "type": "token"
+                    },
+                    {
+                    "type": "stringFacet"
                     }
                 ],
-                "fr": [
+                "authors": [
                     {
-                    "type": "string",
-                    "analyzer": "lucene.french",
-                    "searchAnalyzer": "lucene.french"
+                    "type": "string"
                     },
                     {
-                    "type": "autocomplete"
+                    "type": "token"
+                    },
+                    {
+                    "type": "stringFacet"
                     }
-                ]
+                ],
+                "lang": [
+                    {
+                    "type": "token"
+                    },
+                    {
+                    "type": "stringFacet"
+                    }
+                ],
+                "tags": [
+                    {
+                    "type": "string"
+                    },
+                    {
+                    "type": "token"
+                    },
+                    {
+                    "type": "stringFacet"
+                    }
+                ],
+                "nasdaq_tickers": [
+                    {
+                    "type": "string"
+                    },
+                    {
+                    "type": "token"
+                    },
+                    {
+                    "type": "stringFacet"
+                    }
+                ],
+                "summary": {
+                    "type": "document",
+                    "fields": {
+                    "en": {
+                        "type": "string",
+                        "analyzer": "lucene.english",
+                        "searchAnalyzer": "lucene.english"
+                    },
+                    "es": {
+                        "type": "string",
+                        "analyzer": "lucene.spanish",
+                        "searchAnalyzer": "lucene.spanish"
+                    },
+                    "fr": {
+                        "type": "string",
+                        "analyzer": "lucene.french",
+                        "searchAnalyzer": "lucene.french"
+                    }
+                    }
+                },
+                "content": {
+                    "type": "document",
+                    "fields": {
+                    "en": {
+                        "type": "string",
+                        "analyzer": "lucene.english",
+                        "searchAnalyzer": "lucene.english"
+                    },
+                    "es": {
+                        "type": "string",
+                        "analyzer": "lucene.spanish",
+                        "searchAnalyzer": "lucene.spanish"
+                    },
+                    "fr": {
+                        "type": "string",
+                        "analyzer": "lucene.french",
+                        "searchAnalyzer": "lucene.french"
+                    }
+                    }
+                },
+                "title": {
+                    "type": "document",
+                    "fields": {
+                    "en": [
+                        {
+                        "type": "string",
+                        "analyzer": "lucene.english",
+                        "searchAnalyzer": "lucene.english"
+                        },
+                        {
+                        "type": "autocomplete"
+                        }
+                    ],
+                    "es": [
+                        {
+                        "type": "string",
+                        "analyzer": "lucene.spanish",
+                        "searchAnalyzer": "lucene.spanish"
+                        },
+                        {
+                        "type": "autocomplete"
+                        }
+                    ],
+                    "fr": [
+                        {
+                        "type": "string",
+                        "analyzer": "lucene.french",
+                        "searchAnalyzer": "lucene.french"
+                        },
+                        {
+                        "type": "autocomplete"
+                        }
+                    ]
+                    }
                 }
-            }
             }
         }
         }
