@@ -202,7 +202,23 @@ class Entry:
             content.update({lang:text})
             entry.update({'content':content})
             entry.update({'_id':entry.id})
-            if 'summary' in entry: entry.update({'summary':{lang:entry.summary}})
+            if 'media_thumbnail' in entry: entry.update({'media_thumbnail':entry.media_thumbnail[0]['url']})
+            if 'summary' in entry:
+                # Summary might contain tags. We want to just get the text.
+                # There might also be an image in there. We can grab that too.
+                try:
+                    soup = BeautifulSoup(entry.summary, 'html.parser')
+                    summary_text=soup.get_text()
+                    entry.update({'summary':{lang:summary_text}})
+
+                    # Check if there is an image in the summary
+                    img = soup.find('img')
+                    if img and 'media_thumbnail' not in entry and img.get('src') != '':
+                        entry.update({'media_thumbnail':img.get('src')})
+
+                except TypeError:
+                    entry.update({'summary':{lang:entry.summary}})
+                    
             if 'title' in entry: entry.update({'title':{lang:entry.title}})
             if 'published' in entry:
                 published_date = ''
@@ -212,7 +228,6 @@ class Entry:
                     print("Failed to parse date {} with format {}. Using current date instead".format(entry.published,self.DATE_FORMAT))
                     published_date = datetime.now()
                 entry.update({'published':published_date})
-            if 'media_thumbnail' in entry: entry.update({'media_thumbnail':entry.media_thumbnail[0]['url']})
             if 'tags' in entry:
                 tagList = []
                 for tag in entry.tags:
