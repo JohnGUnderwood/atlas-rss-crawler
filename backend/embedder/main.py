@@ -22,7 +22,7 @@ elif provider == "azure_openai":
     oai_client = AzureOpenAI(api_key=os.getenv("OPENAIAPIKEY"))
 elif provider == "fireworks":
     from openai import OpenAI
-    client = OpenAI(
+    fireworks_client = OpenAI(
         api_key=os.getenv("FIREWORKS_API_KEY"),
         base_url="https://api.fireworks.ai/inference/v1"
     )
@@ -72,7 +72,7 @@ def get_embedding_Mistral(text):
 # Function to get embeddings from Fireworks.ai
 def get_embedding_Fireworks(text):
     text = text.replace("\n", " ")
-    vector_embedding = client.embeddings.create(
+    vector_embedding = fireworks_client.embeddings.create(
         model="nomic-ai/nomic-embed-text-v1.5",
         input=f"search document: {text}",
         dimensions=os.getenv("EMBEDDING_DIMENSIONS",768)
